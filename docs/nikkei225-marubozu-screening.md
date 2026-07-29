@@ -6,18 +6,22 @@
 **現時点ではRoutine未登録。** 下記「前提条件」を満たすまでは `/schedule` による
 日次自動化を行わないこと（初回は手動実行で動作確認してからにする）。
 
-## 前提条件（未整備）
+## 前提条件
 
-このタスクは `screen_marubozu.py` というスクリプトの実行を前提としているが、
-本リポジトリには現時点で以下が存在しない。
+- `screen_marubozu.py` … リポジトリ直下に実装済み。J-Quants API
+  （`JQUANTS_API_KEY` をリフレッシュトークンとして `auth_refresh` でidToken取得）
+  から `/prices/daily_quotes` で日足OHLCVを取得し、大引け坊主判定・RSI14・
+  出来高倍率のクオンツ条件判定を行い `marubozu_candidates.csv` を出力する。
+  quant_all_pass の閾値（出来高倍率1.5倍、RSIバンド等）は仕様に具体的な数値が
+  なかったため暫定値。`--volume-ratio-threshold` 等のCLI引数で調整できる。
+  実データでは未検証（ネットワーク環境の制約でJ-Quants APIに接続できていない）。
+  カラム名の揺れは `COLUMN_ALIASES`（スクリプト冒頭）に追記して対応する。
+- `nikkei225_codes.csv` … **未作成。別途用意が必要。** 1列目に証券コード
+  （ヘッダー行の有無はどちらでも可、スクリプトが自動判定）を入れたCSVを配置すること。
+- 環境変数 `JQUANTS_API_KEY` … 未設定。J-Quantsで発行したリフレッシュトークンを設定する。
 
-- `screen_marubozu.py`（J-Quants APIから日足OHLCVを取得し、大引け坊主判定・
-  RSI等のクオンツ条件判定を行うスクリプト本体）
-- `nikkei225_codes.csv`（日経225構成銘柄の証券コード一覧）
-- 環境変数 `JQUANTS_API_KEY`（J-Quants APIの認証キー）
-
-これらが揃うまで、下記プロンプトを実行しても「事前確認」の段階で停止する。
-`screen_marubozu.py` は別途配置が必要。
+`nikkei225_codes.csv` と `JQUANTS_API_KEY` が揃うまで、下記プロンプトを実行しても
+「事前確認」の段階で停止する。
 
 ## プロンプト本文（Routineに設定する想定の内容）
 
