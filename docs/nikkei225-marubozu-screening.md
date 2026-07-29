@@ -8,17 +8,20 @@
 
 ## 前提条件
 
-- `screen_marubozu.py` … リポジトリ直下に実装済み。J-Quants API
-  （`JQUANTS_API_KEY` をリフレッシュトークンとして `auth_refresh` でidToken取得）
-  から `/prices/daily_quotes` で日足OHLCVを取得し、大引け坊主判定・RSI14・
+- `screen_marubozu.py` … リポジトリ直下に実装済み。J-Quants API **v2**
+  （`JQUANTS_API_KEY` をダッシュボード発行のAPI Keyとして `x-api-key` ヘッダーに
+  直接セット。v1のリフレッシュトークン/idToken方式は廃止されている）
+  から `/equities/bars/daily` で日足OHLCVを取得し、大引け坊主判定・RSI14・
   出来高倍率のクオンツ条件判定を行い `marubozu_candidates.csv` を出力する。
   quant_all_pass の閾値（出来高倍率1.5倍、RSIバンド等）は仕様に具体的な数値が
   なかったため暫定値。`--volume-ratio-threshold` 等のCLI引数で調整できる。
-  実データでは未検証（ネットワーク環境の制約でJ-Quants APIに接続できていない）。
+  実データでは未検証（ネットワーク環境の制約でこのセッションからJ-Quants APIに
+  接続できず、合成データでのユニットテストのみ実施）。
   カラム名の揺れは `COLUMN_ALIASES`（スクリプト冒頭）に追記して対応する。
 - `nikkei225_codes.csv` … **未作成。別途用意が必要。** 1列目に証券コード
   （ヘッダー行の有無はどちらでも可、スクリプトが自動判定）を入れたCSVを配置すること。
-- 環境変数 `JQUANTS_API_KEY` … 未設定。J-Quantsで発行したリフレッシュトークンを設定する。
+- 環境変数 `JQUANTS_API_KEY` … 未設定。J-Quantsダッシュボードの「API Key」ページで
+  発行される値をそのまま設定する（リフレッシュトークンではない）。
 
 `nikkei225_codes.csv` と `JQUANTS_API_KEY` が揃うまで、下記プロンプトを実行しても
 「事前確認」の段階で停止する。

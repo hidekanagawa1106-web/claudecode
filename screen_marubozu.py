@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """日経225向け 大引け坊主スクリーニング (docs/nikkei225-marubozu-screening.md 参照)。
 
-J-Quants APIから日足OHLCVを取得し、直近の取引日について
+J-Quants API v2（ダッシュボード発行のAPI Keyを`x-api-key`ヘッダーで直接使用、
+v1のリフレッシュトークン方式は廃止済み）から日足OHLCVを取得し、直近の取引日について
 「大引け坊主」（陽線/陰線とも、終値側にヒゲがほぼない実体足）を検出し、
 RSI・出来高倍率のクオンツ条件を満たすかどうかを判定して
 marubozu_candidates.csv に出力する。
@@ -17,8 +18,8 @@ import argparse
 import os
 import sys
 import time
-from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from dataclasses import dataclass
+from datetime import date, timedelta
 from typing import Optional
 
 try:
@@ -33,18 +34,22 @@ except ImportError:
     sys.exit("pandas がインストールされていません。`pip install requests pandas` を実行してください。")
 
 
-JQUANTS_BASE_URL = "https://api.jquants.com/v1"
+JQUANTS_BASE_URL = "https://api.jquants.com/v2"
+JQUANTS_DAILY_BARS_PATH = "/equities/bars/daily"
 
 # J-Quants APIのレスポンス列名はプラン/バージョンによって揺れることがあるため、
 # 実際に受け取った列名をここに追加していく（KeyErrorのメッセージに実列名が出る）。
+# v2 `/equities/bars/daily` の列名: Date, Code, O/H/L/C, UL/LL, Vo/Va,
+# AdjFactor, AdjO/AdjH/AdjL/AdjC/AdjVo（他に前場M*/後場A*の内訳列もある）。
+# 分割等の調整後株価であるAdj系を優先し、無ければ非調整の生値にフォールバックする。
 COLUMN_ALIASES: dict[str, list[str]] = {
     "date": ["Date"],
     "code": ["Code"],
-    "open": ["AdjustmentOpen", "Open"],
-    "high": ["AdjustmentHigh", "High"],
-    "low": ["AdjustmentLow", "Low"],
-    "close": ["AdjustmentClose", "Close"],
-    "volume": ["AdjustmentVolume", "Volume"],
+    "open": ["AdjO", "O"],
+    "high": ["AdjH", "H"],
+    "low": ["AdjL", "L"],
+    "close": ["AdjC", "C"],
+    "volume": ["AdjVo", "Vo"],
 }
 
 # --- 大引け坊主の判定条件（デフォルト） ---
@@ -69,53 +74,48 @@ class JQuantsAuthError(RuntimeError):
 
 
 class JQuantsClient:
-    def __init__(self, refresh_token: str, request_delay: float = DEFAULT_REQUEST_DELAY):
-        self.refresh_token = refresh_token
+    """J-Quants API v2クライアント。x-api-keyヘッダーで直接認証する（v1のトークン交換は廃止済み）。"""
+
+    def __init__(self, api_key: str, request_delay: float = DEFAULT_REQUEST_DELAY):
+        self.api_key = api_key
         self.request_delay = request_delay
         self.session = requests.Session()
-        self.id_token: Optional[str] = None
 
-    def _refresh_id_token(self) -> None:
-        resp = self.session.post(
-            f"{JQUANTS_BASE_URL}/token/auth_refresh",
-            params={"refreshtoken": self.refresh_token},
-            timeout=30,
-        )
-        if resp.status_code in (401, 403):
-            raise JQuantsAuthError(
-                "JQUANTS_API_KEY（リフレッシュトークン）が無効か期限切れです。"
-                "J-Quantsのマイページで再取得してください。"
-            )
-        resp.raise_for_status()
-        payload = resp.json()
-        id_token = payload.get("idToken")
-        if not id_token:
-            raise JQuantsAuthError(f"idTokenがレスポンスに含まれていません: {payload}")
-        self.id_token = id_token
+    def fetch_daily_bars(self, code: str, date_from: str, date_to: str, max_retries: int = 3) -> list[dict]:
+        url = f"{JQUANTS_BASE_URL}{JQUANTS_DAILY_BARS_PATH}"
+        headers = {"x-api-key": self.api_key}
+        params: dict[str, str] = {"code": code, "from": date_from, "to": date_to}
 
-    def fetch_daily_quotes(self, code: str, date_from: str, date_to: str, max_retries: int = 3) -> list[dict]:
-        if self.id_token is None:
-            self._refresh_id_token()
-
-        url = f"{JQUANTS_BASE_URL}/prices/daily_quotes"
-        params = {"code": code, "from": date_from, "to": date_to}
-
-        for attempt in range(max_retries):
-            resp = self.session.get(
-                url, headers={"Authorization": f"Bearer {self.id_token}"}, params=params, timeout=30
-            )
-            if resp.status_code == 401:
-                self._refresh_id_token()
-                continue
+        all_data: list[dict] = []
+        attempt = 0
+        while True:
+            resp = self.session.get(url, headers=headers, params=params, timeout=30)
+            if resp.status_code in (401, 403):
+                raise JQuantsAuthError(
+                    "JQUANTS_API_KEY（J-Quants APIキー）が無効です。"
+                    "J-QuantsのダッシュボードでAPI Keyを確認・再発行してください。"
+                )
             if resp.status_code == 429:
-                wait = 2 ** attempt * 2
-                time.sleep(wait)
+                attempt += 1
+                if attempt > max_retries:
+                    raise RuntimeError(f"{code}: リトライ上限に達しました（レート制限の可能性）。")
+                time.sleep(2 ** attempt * 2)
                 continue
             resp.raise_for_status()
-            time.sleep(self.request_delay)
-            return resp.json().get("daily_quotes", [])
 
-        raise RuntimeError(f"{code}: リトライ上限に達しました（レート制限の可能性）。")
+            payload = resp.json()
+            batch = payload.get("data", [])
+            if isinstance(batch, list):
+                all_data.extend(batch)
+
+            pagination_key = payload.get("pagination_key")
+            if not pagination_key:
+                break
+            params["pagination_key"] = pagination_key
+            attempt = 0
+
+        time.sleep(self.request_delay)
+        return all_data
 
 
 def resolve_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -186,7 +186,7 @@ class ScreenConfig:
 
 
 def screen_one_code(client: JQuantsClient, code: str, date_from: str, date_to: str, cfg: ScreenConfig) -> Optional[dict]:
-    quotes = client.fetch_daily_quotes(code, date_from, date_to)
+    quotes = client.fetch_daily_bars(code, date_from, date_to)
     if not quotes:
         return {"code": code, "error": "データなし（取得期間内に日足データがありません）"}
 
@@ -297,11 +297,7 @@ def main() -> int:
         target_date=args.date,
     )
 
-    try:
-        client = JQuantsClient(api_key, request_delay=args.request_delay)
-    except JQuantsAuthError as e:
-        print(str(e), file=sys.stderr)
-        return 1
+    client = JQuantsClient(api_key, request_delay=args.request_delay)
 
     candidates: list[dict] = []
     errors: list[tuple[str, str]] = []
