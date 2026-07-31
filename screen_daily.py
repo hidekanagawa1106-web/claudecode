@@ -31,6 +31,7 @@
 
 import os
 import sys
+import time
 import argparse
 import pandas as pd
 import requests
@@ -73,10 +74,28 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df.rename(columns=rename_map)
 
 
+def get_with_retry(url: str, params: dict, headers: dict, max_retries: int = 5):
+    """429(レート制限)は指数バックオフで待って再試行する。
+
+    途中で取得に失敗すると、その銘柄が候補から漏れたまま picks_log.csv に
+    記録されてしまうため、取得は諦めずにリトライする。
+    """
+    wait = 2.0
+    for attempt in range(max_retries):
+        resp = requests.get(url, params=params, headers=headers, timeout=30)
+        if resp.status_code != 429:
+            resp.raise_for_status()
+            return resp
+        if attempt < max_retries - 1:
+            time.sleep(wait)
+            wait *= 2
+    resp.raise_for_status()
+    return resp
+
+
 def fetch_daily_bars(code: str, headers: dict, lookback_days: int = 60) -> pd.DataFrame:
     params = {"code": code}
-    resp = requests.get(f"{API_BASE}/equities/bars/daily", params=params, headers=headers)
-    resp.raise_for_status()
+    resp = get_with_retry(f"{API_BASE}/equities/bars/daily", params, headers)
     data = resp.json()
     if isinstance(data, list):
         records = data
