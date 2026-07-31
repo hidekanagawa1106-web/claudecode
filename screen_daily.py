@@ -53,14 +53,14 @@ COLUMN_ALIASES = {
 }
 
 PICKS_LOG_COLUMNS = [
-    "pick_date", "code", "driver", "group", "tier", "pattern", "ma25_break", "volume_ok",
+    "pick_date", "code", "track", "driver", "group", "tier", "pattern", "ma25_break", "volume_ok",
     "rsi", "quant_all_pass", "pick_rank", "prev_close",
     # スコア（順位付けに使用）
     "score", "score_trend", "score_rsi", "score_volume", "score_candle",
     "volume_ratio", "perfect_order",
     # 決算（記録のみ。順位付けには一切使わない）
     "earnings_days_ago", "earnings_op_yoy", "earnings_progress",
-    "earnings_revision", "earnings_next",
+    "earnings_revision", "earnings_next", "catalyst_reasons",
     # 成果
     "outcome_date", "next_open", "next_high", "next_low", "next_close",
     "gap_pct", "day_change_pct", "outcome_recorded",
@@ -255,9 +255,60 @@ def record_outcomes(log_df: pd.DataFrame, headers: dict) -> pd.DataFrame:
     return log_df
 
 
+def detect_catalysts(rows: list, min_chg: float = 3.0,
+                     min_group_ratio: float = 1 / 3, min_group_count: int = 3) -> list:
+    """上昇トレンド条件を満たさない銘柄から、明確な需給変化があったものを拾う。
+
+    順張りのハードフィルタは「下降トレンドの途中で買う」(運用方針 §4 禁止事項1)を
+    防ぐためのものだが、セクター全体が外部材料で急反発した日を丸ごと取りこぼす。
+    実例として2026-07-31、半導体・AI関連19銘柄のうち18銘柄が+3%以上動いたが、
+    7月の調整でMA25の下にいたため1銘柄も候補に出なかった。
+
+    検知するのは「材料がありそうな値動きの形」だけで、材料そのもの
+    (海外決算・マクロ指標など)は判定しない。そこは翌朝の確認に委ねる。
+    """
+    # セクター一斉高: 同一連動グループの一定割合が同日に大きく上げた
+    group_total, group_hot = {}, {}
+    for r in rows:
+        g = r.get("group") or ""
+        if not g:
+            continue
+        group_total[g] = group_total.get(g, 0) + 1
+        if r["_chg"] >= min_chg:
+            group_hot[g] = group_hot.get(g, 0) + 1
+    hot_groups = {
+        g: (group_hot[g], group_total[g]) for g in group_hot
+        if group_hot[g] >= min_group_count
+        and group_hot[g] / group_total[g] >= min_group_ratio
+    }
+
+    out = []
+    for r in rows:
+        if r["_passes_trend"]:
+            continue  # 順張りトラックで拾うため二重に出さない
+        reasons = []
+        if r["pattern"] == "ストップ高":
+            reasons.append("ストップ高")
+        g = r.get("group") or ""
+        if g in hot_groups:
+            hot, tot = hot_groups[g]
+            reasons.append(f"セクター一斉高({g} {tot}銘柄中{hot}銘柄が+{min_chg:.0f}%以上)")
+        if r["_chg"] >= 5.0 and r["volume_ratio"] >= 2.0:
+            reasons.append(f"大幅高+出来高{r['volume_ratio']:.1f}倍")
+        if reasons:
+            out.append({**r, "catalyst_reasons": " / ".join(reasons)})
+    out.sort(key=lambda r: r["_chg"], reverse=True)
+    return out
+
+
 def screen_universe(universe_df: pd.DataFrame, headers: dict, schedule: set):
-    """全銘柄を採点する。戻り値は (通過した候補, ファネル集計, 除外理由)。"""
-    passed, rejected = [], []
+    """全銘柄を採点する。
+
+    戻り値は (順張り候補, 材料検知, ファネル集計, 除外理由)。
+    材料検知のためにセクター全体の動きを見る必要があるため、
+    ハードフィルタで落ちた銘柄も指標を計算してから振り分ける。
+    """
+    all_rows, rejected = [], []
     funnel = {"母集団": 0, "データ不足": 0, "上昇トレンド": 0}
 
     for _, urow in universe_df.iterrows():
@@ -278,14 +329,16 @@ def screen_universe(universe_df: pd.DataFrame, headers: dict, schedule: set):
 
             cond_ma25_break = latest["close"] > ma25_now
             cond_ma25_trend = ma25_now >= ma25_prev
+            passes_trend = bool(cond_ma25_break and cond_ma25_trend)
 
-            # ハードフィルタ: 上昇トレンドにある銘柄のみ通す
-            if not (cond_ma25_break and cond_ma25_trend):
+            # 順張りのハードフィルタは上昇トレンドのみ。ただし落ちた銘柄も
+            # セクター一斉高の判定に必要なため、指標は全銘柄で計算する。
+            if passes_trend:
+                funnel["上昇トレンド"] += 1
+            else:
                 why = "終値がMA25の下" if not cond_ma25_break else "MA25が下向き"
                 rejected.append({"code": code, "driver": urow.get("driver", ""),
                                  "reason": why})
-                continue
-            funnel["上昇トレンド"] += 1
 
             avg_vol20 = df["volume"].iloc[-21:-1].mean()
             vol_ratio = (latest["volume"] / avg_vol20) if avg_vol20 else 0
@@ -297,9 +350,12 @@ def screen_universe(universe_df: pd.DataFrame, headers: dict, schedule: set):
             s_candle, pattern = score_candle(latest)
 
             # 決算は記録のみ。スコアには加算しない。
-            sig = earnings.fetch_earnings_signals(code, headers, df["date"].tolist())
+            # 全74銘柄で叩くとAPI負荷が倍増するため、順張り候補のみ取得する。
+            sig = (earnings.fetch_earnings_signals(code, headers, df["date"].tolist())
+                   if passes_trend else {})
 
-            passed.append({
+            all_rows.append({
+                "_passes_trend": passes_trend,
                 "pick_date": latest["date"],
                 "code": code,
                 "driver": urow.get("driver", "unclassified"),
@@ -324,7 +380,10 @@ def screen_universe(universe_df: pd.DataFrame, headers: dict, schedule: set):
         except Exception as e:
             print(f"[warn] {code}: {e}", file=sys.stderr)
             rejected.append({"code": code, "reason": f"取得失敗: {e}"})
-    return passed, funnel, rejected
+
+    passed = [r for r in all_rows if r["_passes_trend"]]
+    catalysts = detect_catalysts(all_rows)
+    return passed, catalysts, funnel, rejected
 
 
 def select_top_n(candidates: list, top_n: int, max_per_driver: int = 2) -> list:
@@ -362,7 +421,7 @@ def _mark(value: int, high: int, mid: int) -> str:
 
 
 def print_report(selected, candidates, funnel, rejected, names, pick_date,
-                 top_n, brief=False):
+                 top_n, brief=False, flagged=None, catalysts=None):
     fmt_e = lambda v: "-" if v is None or pd.isna(v) else v
     nm = lambda c: names.get(c, "")
 
@@ -436,6 +495,23 @@ def print_report(selected, candidates, funnel, rejected, names, pick_date,
             print("  ※ 特定ドライバーに偏っています。同じ材料で動く銘柄を重複して"
                   "持たないようご注意ください。")
 
+    if flagged:
+        print("\n■ 材料検知（上昇トレンド条件は満たさないが、明確な需給変化あり）")
+        for r in flagged:
+            print(f"  {r['code']} {nm(r['code'])[:14]:<15} {r['_chg']:+6.2f}%  "
+                  f"RSI {r['rsi']:>4}  出来高 {r['volume_ratio']:.2f}倍")
+            print(f"     {r['catalyst_reasons']}")
+        shown = {r["code"] for r in flagged}
+        rest = [r for r in (catalysts or []) if r["code"] not in shown]
+        if rest:
+            print(f"  ほか{len(rest)}銘柄: "
+                  + " ".join(f"{r['code']}({nm(r['code'])[:6]} {r['_chg']:+.1f}%)"
+                             for r in rest[:8]))
+        print("  ※ 上昇の材料そのものは判定していません。海外決算・マクロ指標などを"
+              "個別にご確認ください。")
+        print("  ※ これらはMA25の下にあり順張りの条件を満たしません（禁止事項1）。"
+              "エントリーするなら逆張り4条件(§3-2)での判断になります。")
+
     nxt = [c for c in candidates if c["earnings_next"]]
     print(f"\n■ 翌営業日に決算発表（ユニバース内の通過銘柄）: {len(nxt)}銘柄")
     if nxt:
@@ -471,19 +547,24 @@ def main():
         print("[warn] JPXの決算発表予定日を取得できませんでした。"
               "earnings_next は全てFalseとして記録します。", file=sys.stderr)
 
-    candidates, funnel, rejected = screen_universe(universe_df, headers, schedule)
+    candidates, catalysts, funnel, rejected = screen_universe(universe_df, headers, schedule)
     selected = select_top_n(candidates, args.top_n, args.max_per_driver) if candidates else []
+    # 材料検知も同じ上限で絞る。18銘柄が一斉高しても全部は張れない。
+    flagged = select_top_n(catalysts, args.top_n, args.max_per_driver) if catalysts else []
 
-    for i, r in enumerate(selected):
-        new_row = {c: r.get(c) for c in PICKS_LOG_COLUMNS if c in r}
-        new_row["pick_rank"] = i + 1
-        new_row["outcome_recorded"] = False
-        log_df = pd.concat([log_df, pd.DataFrame([new_row])], ignore_index=True)
+    for track, rows in (("順張り", selected), ("材料検知", flagged)):
+        for i, r in enumerate(rows):
+            new_row = {c: r.get(c) for c in PICKS_LOG_COLUMNS if c in r}
+            new_row["track"] = track
+            new_row["pick_rank"] = i + 1
+            new_row["outcome_recorded"] = False
+            log_df = pd.concat([log_df, pd.DataFrame([new_row])], ignore_index=True)
     log_df.to_csv(args.log, index=False, encoding="utf-8-sig")
 
-    pick_date = candidates[0]["pick_date"] if candidates else "-"
+    pick_date = (candidates or catalysts)[0]["pick_date"] if (candidates or catalysts) else "-"
     print_report(selected, candidates, funnel, rejected, names, pick_date,
-                 args.top_n, brief=(args.format == "brief"))
+                 args.top_n, brief=(args.format == "brief"), flagged=flagged,
+                 catalysts=catalysts)
 
     completed = log_df[log_df["outcome_recorded"] == True]
     print(f"\n記録済みサンプル数: {len(completed)}件"
