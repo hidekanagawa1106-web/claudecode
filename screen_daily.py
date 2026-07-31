@@ -192,7 +192,17 @@ def score_volume(ratio: float) -> int:
 
 
 def score_candle(row) -> tuple:
-    """陽の大引け坊主 +20 / 陽線・上ヒゲ10%以内 +10 / 陰の大引け坊主 -10"""
+    """ストップ高 +30 / 陽の大引け坊主 +20 / 陽線・上ヒゲ10%以内 +10
+    / 陰の大引け坊主 -10 / ストップ安 -30
+
+    ストップ高は値幅がゼロになるため大引け坊主の判定が成立せず、
+    売り手がいないので出来高も激減する。素の配点のままだと最強の需給が
+    最低点になってしまうため、ローソク足の判定より先に見る。
+    """
+    if str(row.get("UL", "0")).strip() == "1":
+        return 30, "ストップ高"
+    if str(row.get("LL", "0")).strip() == "1":
+        return -30, "ストップ安"
     pattern = check_marubozu(row)
     if pattern == "陽の大引け坊主":
         return 20, pattern
