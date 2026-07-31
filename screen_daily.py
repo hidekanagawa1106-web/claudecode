@@ -36,20 +36,32 @@ import argparse
 import pandas as pd
 import requests
 
+import earnings
+
 API_BASE = "https://api.jquants.com/v2"
 
+# 分割調整済み(Adj*)を優先する。未調整のO/H/L/C/Voを使うと、分割をまたいだ
+# MA25・MA75・RSI・出来高倍率がすべて壊れる（例: 2026-07-30の8309は4分割で
+# 見かけ上-75.6%、RSIも11.5まで潰れていた）。
 COLUMN_ALIASES = {
     "date": ["date", "Date"],
-    "open": ["open", "Open", "O"],
-    "high": ["high", "High", "H"],
-    "low": ["low", "Low", "L"],
-    "close": ["close", "Close", "C"],
-    "volume": ["volume", "Volume", "Vo", "vo"],
+    "open": ["AdjO", "open", "Open", "O"],
+    "high": ["AdjH", "high", "High", "H"],
+    "low": ["AdjL", "low", "Low", "L"],
+    "close": ["AdjC", "close", "Close", "C"],
+    "volume": ["AdjVo", "volume", "Volume", "Vo", "vo"],
 }
 
 PICKS_LOG_COLUMNS = [
-    "pick_date", "code", "driver", "pattern", "ma25_break", "volume_ok",
+    "pick_date", "code", "driver", "tier", "pattern", "ma25_break", "volume_ok",
     "rsi", "quant_all_pass", "pick_rank", "prev_close",
+    # スコア（順位付けに使用）
+    "score", "score_trend", "score_rsi", "score_volume", "score_candle",
+    "volume_ratio", "perfect_order",
+    # 決算（記録のみ。順位付けには一切使わない）
+    "earnings_days_ago", "earnings_op_yoy", "earnings_progress",
+    "earnings_revision", "earnings_next",
+    # 成果
     "outcome_date", "next_open", "next_high", "next_low", "next_close",
     "gap_pct", "day_change_pct", "outcome_recorded",
 ]
@@ -93,7 +105,7 @@ def get_with_retry(url: str, params: dict, headers: dict, max_retries: int = 5):
     return resp
 
 
-def fetch_daily_bars(code: str, headers: dict, lookback_days: int = 60) -> pd.DataFrame:
+def fetch_daily_bars(code: str, headers: dict, lookback_days: int = 120) -> pd.DataFrame:
     params = {"code": code}
     resp = get_with_retry(f"{API_BASE}/equities/bars/daily", params, headers)
     data = resp.json()
@@ -133,6 +145,66 @@ def check_marubozu(row, wick_threshold: float = 0.05):
     return None
 
 
+# --------------------------------------------------------------------------
+# スコアリング
+#
+# ハードフィルタは「終値 > MA25 かつ MA25上向き」のみ。
+# 大引け坊主は必須条件ではなく、ローソク足軸の加点要素として扱う。
+#
+# 注: ハードフィルタを通った銘柄は score_trend の 15+10=25点を必ず獲得するため、
+# その25点は全候補に共通の下駄になる。順位は残り75点分で決まる。
+# --------------------------------------------------------------------------
+
+def score_trend(close, ma5, ma25, ma25_prev, ma75) -> tuple:
+    score = 0
+    if close > ma25:
+        score += 15
+    if ma25 >= ma25_prev:
+        score += 10
+    perfect = ma75 is not None and pd.notna(ma75) and close > ma5 > ma25 > ma75
+    if perfect:
+        score += 15
+    return score, bool(perfect)
+
+
+def score_rsi(rsi: float) -> int:
+    if rsi >= 75:
+        return 0
+    if rsi >= 70:
+        return 5
+    if rsi >= 65:
+        return 12
+    if rsi >= 50:
+        return 20
+    return 8
+
+
+def score_volume(ratio: float) -> int:
+    if ratio >= 2.0:
+        return 20
+    if ratio >= 1.5:
+        return 15
+    if ratio >= 1.2:
+        return 10
+    if ratio >= 1.0:
+        return 5
+    return 0
+
+
+def score_candle(row) -> tuple:
+    """陽の大引け坊主 +20 / 陽線・上ヒゲ10%以内 +10 / 陰の大引け坊主 -10"""
+    pattern = check_marubozu(row)
+    if pattern == "陽の大引け坊主":
+        return 20, pattern
+    if pattern == "陰の大引け坊主":
+        return -10, pattern
+    o, h, l, c = row["open"], row["high"], row["low"], row["close"]
+    rng = h - l
+    if rng > 0 and c > o and (h - c) / rng <= 0.10:
+        return 10, "陽線(上ヒゲ小)"
+    return 0, "-"
+
+
 def load_log(path: str) -> pd.DataFrame:
     if os.path.exists(path):
         df = pd.read_csv(path, dtype={"code": str})
@@ -154,7 +226,10 @@ def record_outcomes(log_df: pd.DataFrame, headers: dict) -> pd.DataFrame:
             if after.empty:
                 continue  # まだ翌営業日のデータが出ていない
             next_bar = after.iloc[0]
-            prev_close = row.get("prev_close")
+            # 分割調整値は遡って再計算されるため、記録時の prev_close は
+            # 分割をまたぐと基準がずれる。取得し直した pick_date の終値を優先する。
+            same_day = df[df["date"] == row["pick_date"]]
+            prev_close = same_day["close"].iloc[-1] if not same_day.empty else row.get("prev_close")
             log_df.at[idx, "outcome_date"] = next_bar["date"]
             log_df.at[idx, "next_open"] = next_bar["open"]
             log_df.at[idx, "next_high"] = next_bar["high"]
@@ -170,54 +245,82 @@ def record_outcomes(log_df: pd.DataFrame, headers: dict) -> pd.DataFrame:
     return log_df
 
 
-def screen_universe(universe_df: pd.DataFrame, headers: dict):
-    results = []
+def screen_universe(universe_df: pd.DataFrame, headers: dict, schedule: set):
+    """全銘柄を採点する。戻り値は (通過した候補, ファネル集計, 除外理由)。"""
+    passed, rejected = [], []
+    funnel = {"母集団": 0, "データ不足": 0, "上昇トレンド": 0}
+
     for _, urow in universe_df.iterrows():
         code = urow["code"]
+        funnel["母集団"] += 1
         try:
             df = fetch_daily_bars(code, headers)
             if len(df) < 26:
+                funnel["データ不足"] += 1
+                rejected.append({"code": code, "reason": "日足データが26本未満"})
                 continue
             latest = df.iloc[-1]
-            pattern = check_marubozu(latest)
-            if pattern is None:
-                continue
 
-            ma25 = df["close"].rolling(25).mean()
-            ma25_now, ma25_prev = ma25.iloc[-1], ma25.iloc[-2]
+            ma5 = df["close"].rolling(5).mean().iloc[-1]
+            ma25s = df["close"].rolling(25).mean()
+            ma25_now, ma25_prev = ma25s.iloc[-1], ma25s.iloc[-2]
+            ma75 = df["close"].rolling(75).mean().iloc[-1] if len(df) >= 75 else None
+
             cond_ma25_break = latest["close"] > ma25_now
             cond_ma25_trend = ma25_now >= ma25_prev
 
+            # ハードフィルタ: 上昇トレンドにある銘柄のみ通す
+            if not (cond_ma25_break and cond_ma25_trend):
+                why = "終値がMA25の下" if not cond_ma25_break else "MA25が下向き"
+                rejected.append({"code": code, "driver": urow.get("driver", ""),
+                                 "reason": why})
+                continue
+            funnel["上昇トレンド"] += 1
+
             avg_vol20 = df["volume"].iloc[-21:-1].mean()
-            cond_volume = latest["volume"] >= avg_vol20 * 1.2
-
+            vol_ratio = (latest["volume"] / avg_vol20) if avg_vol20 else 0
             rsi = compute_rsi(df["close"])
-            cond_rsi = rsi < 70
 
-            quant_all_pass = cond_ma25_break and cond_ma25_trend and cond_volume and cond_rsi
+            s_trend, perfect = score_trend(latest["close"], ma5, ma25_now, ma25_prev, ma75)
+            s_rsi = score_rsi(rsi)
+            s_vol = score_volume(vol_ratio)
+            s_candle, pattern = score_candle(latest)
 
-            results.append({
+            # 決算は記録のみ。スコアには加算しない。
+            sig = earnings.fetch_earnings_signals(code, headers, df["date"].tolist())
+
+            passed.append({
                 "pick_date": latest["date"],
                 "code": code,
                 "driver": urow.get("driver", "unclassified"),
+                "tier": urow.get("tier", ""),
                 "pattern": pattern,
                 "ma25_break": cond_ma25_break,
-                "volume_ok": cond_volume,
+                "volume_ok": vol_ratio >= 1.2,
                 "rsi": round(rsi, 1),
-                "quant_all_pass": quant_all_pass,
-                "prev_close": latest["close"],  # 翌日gap計算用に当日終値を保存
-                "_volume_ratio": (latest["volume"] / avg_vol20) if avg_vol20 else 0,
+                "quant_all_pass": bool(cond_ma25_break and cond_ma25_trend
+                                       and vol_ratio >= 1.2 and rsi < 70),
+                "prev_close": latest["close"],
+                "score": s_trend + s_rsi + s_vol + s_candle,
+                "score_trend": s_trend, "score_rsi": s_rsi,
+                "score_volume": s_vol, "score_candle": s_candle,
+                "volume_ratio": round(vol_ratio, 2),
+                "perfect_order": perfect,
+                "earnings_next": code in schedule,
+                "_chg": round((latest["close"] / df["close"].iloc[-2] - 1) * 100, 2),
+                **sig,
             })
         except Exception as e:
             print(f"[warn] {code}: {e}", file=sys.stderr)
-    return results
+            rejected.append({"code": code, "reason": f"取得失敗: {e}"})
+    return passed, funnel, rejected
 
 
 def select_top_n(candidates: list, top_n: int, max_per_driver: int = 2) -> list:
-    """quant_all_pass優先、出来高倍率で並び替えたうえで、
-    同じドライバーが max_per_driver 銘柄を超えないように上位N銘柄を選ぶ。
+    """スコア降順（同点は出来高倍率）で並べ、同じドライバーが
+    max_per_driver 銘柄を超えないように上位N銘柄を選ぶ。
     """
-    ranked = sorted(candidates, key=lambda r: (r["quant_all_pass"], r["_volume_ratio"]), reverse=True)
+    ranked = sorted(candidates, key=lambda r: (r["score"], r["volume_ratio"]), reverse=True)
     selected, driver_count = [], {}
     for r in ranked:
         d = r["driver"]
@@ -230,40 +333,137 @@ def select_top_n(candidates: list, top_n: int, max_per_driver: int = 2) -> list:
     return selected
 
 
+REVISION_LABEL = {"up": "上方修正", "down": "下方修正",
+                  "flat": "据え置き", "initial": "初回予想"}
+
+
+def _mark(value: int, high: int, mid: int) -> str:
+    return "◎" if value >= high else ("○" if value >= mid else ("△" if value > 0 else "×"))
+
+
+def print_report(selected, candidates, funnel, rejected, names, pick_date,
+                 top_n, brief=False):
+    fmt_e = lambda v: "-" if v is None or pd.isna(v) else v
+    nm = lambda c: names.get(c, "")
+
+    print("=" * 66)
+    print(f"【翌日ウォッチ優先リスト】  データ: {pick_date} 大引けまで")
+    print("=" * 66)
+
+    if not brief:
+        print("\n■ 絞り込みファネル")
+        print(f"  母集団                              {funnel['母集団']:>3}")
+        print(f"  └ 上昇トレンド(終値>MA25 & MA25上向き)  {funnel['上昇トレンド']:>3}"
+              f"  (-{funnel['母集団'] - funnel['上昇トレンド'] - funnel['データ不足']})")
+        print(f"     └ ドライバー上限2銘柄で上位{top_n}銘柄を提示 → {len(selected)}")
+
+    print("\n■ 優先度ランキング")
+    if not selected:
+        print("  該当なし（上昇トレンド条件を満たす銘柄がありませんでした）")
+    else:
+        print("  順 コード 銘柄               ドライバー      点数  ト 過 出 パ  決算")
+        for i, r in enumerate(selected, 1):
+            ec = "決算前" if r["earnings_next"] else (
+                f"{int(r['earnings_days_ago'])}日前" if r.get("earnings_days_ago") is not None
+                and not pd.isna(r["earnings_days_ago"]) and r["earnings_days_ago"] <= 3 else "-")
+            print(f"  {i:>2} {r['code']:<5} {nm(r['code'])[:16]:<17} {r['driver'][:12]:<13}"
+                  f" {r['score']:>4}  {_mark(r['score_trend'],35,25)} "
+                  f"{_mark(r['score_rsi'],20,12)} {_mark(r['score_volume'],15,10)} "
+                  f"{_mark(r['score_candle']+10,25,15)}  {ec}")
+        print("  ト=トレンド 過=過熱度(RSI) 出=出来高 パ=ローソク足")
+
+    if not brief and selected:
+        print("\n■ 上位銘柄の所見")
+        for i, r in enumerate(selected, 1):
+            print(f"  {i}. {r['code']} {nm(r['code'])}  {r['score']}点 / "
+                  f"{r['prev_close']:,.1f}円 ({r['_chg']:+.2f}%)")
+            print(f"     {r['pattern']} / RSI {r['rsi']} / 出来高 {r['volume_ratio']}倍"
+                  f"{' / パーフェクトオーダー' if r['perfect_order'] else ''}")
+            if r.get("earnings_days_ago") is not None and not pd.isna(r["earnings_days_ago"]) \
+                    and r["earnings_days_ago"] <= 5:
+                print(f"     決算: {int(r['earnings_days_ago'])}営業日前に発表 / "
+                      f"前年同期比 {fmt_e(r['earnings_op_yoy'])}% / "
+                      f"進捗率 {fmt_e(r['earnings_progress'])}% / "
+                      f"通期予想 {REVISION_LABEL.get(r['earnings_revision'], '-')}")
+            if r["earnings_next"]:
+                print("     ⚠ 翌営業日に決算発表予定")
+
+        rest = [c for c in candidates if c not in selected]
+        rest.sort(key=lambda r: r["score"], reverse=True)
+        if rest:
+            print("\n■ 次点（上位に届かなかった通過銘柄）")
+            for r in rest[:5]:
+                print(f"  {r['code']} {nm(r['code'])[:14]:<15} {r['score']:>3}点 "
+                      f"/ RSI {r['rsi']} / 出来高 {r['volume_ratio']}倍 / {r['pattern']}")
+
+    if not brief and rejected:
+        print("\n■ 除外された銘柄（見落とし確認用）")
+        agg = {}
+        for r in rejected:
+            agg.setdefault(r["reason"], []).append(r["code"])
+        for reason, codes in sorted(agg.items(), key=lambda kv: -len(kv[1])):
+            shown = " ".join(f"{c}({nm(c)[:6]})" for c in codes[:8])
+            more = f" ほか{len(codes) - 8}銘柄" if len(codes) > 8 else ""
+            print(f"  [{reason}] {len(codes)}銘柄")
+            print(f"    {shown}{more}")
+
+    if selected:
+        dist = {}
+        for r in selected:
+            dist[r["driver"]] = dist.get(r["driver"], 0) + 1
+        print("\n■ ドライバー分布: " + " / ".join(f"{k}{v}" for k, v in dist.items()))
+        if len(dist) <= 2:
+            print("  ※ 特定ドライバーに偏っています。同じ材料で動く銘柄を重複して"
+                  "持たないようご注意ください。")
+
+    nxt = [c for c in candidates if c["earnings_next"]]
+    print(f"\n■ 翌営業日に決算発表（ユニバース内の通過銘柄）: {len(nxt)}銘柄")
+    if nxt:
+        print("  " + " / ".join(f"{c['code']} {nm(c['code'])}" for c in nxt))
+    print("  ※ 決算はスコアに加算していません。記録のみで、効果はサンプルが"
+          "貯まってから検証します。")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--universe", required=True)
     parser.add_argument("--log", default="picks_log.csv")
     parser.add_argument("--top-n", type=int, default=5)
     parser.add_argument("--max-per-driver", type=int, default=2)
+    parser.add_argument("--format", choices=["brief", "full"], default="full")
+    parser.add_argument("--names", default="company_master.csv")
+    parser.add_argument("--no-schedule", action="store_true",
+                        help="JPXの決算発表予定日を取得しない")
     args = parser.parse_args()
 
     headers = get_headers()
     universe_df = pd.read_csv(args.universe, dtype={"code": str})
     log_df = load_log(args.log)
-
     log_df = record_outcomes(log_df, headers)
 
-    candidates = screen_universe(universe_df, headers)
-    if not candidates:
-        print("本日、大引け坊主に該当する銘柄はありませんでした。")
-        log_df.to_csv(args.log, index=False, encoding="utf-8-sig")
-        return
+    names = {}
+    if os.path.exists(args.names):
+        nm = pd.read_csv(args.names, dtype={"code": str})
+        names = dict(zip(nm["code"], nm["CoName"]))
 
-    selected = select_top_n(candidates, args.top_n, args.max_per_driver)
+    schedule = set() if args.no_schedule else earnings.fetch_jpx_schedule()
+    if not schedule and not args.no_schedule:
+        print("[warn] JPXの決算発表予定日を取得できませんでした。"
+              "earnings_next は全てFalseとして記録します。", file=sys.stderr)
+
+    candidates, funnel, rejected = screen_universe(universe_df, headers, schedule)
+    selected = select_top_n(candidates, args.top_n, args.max_per_driver) if candidates else []
 
     for i, r in enumerate(selected):
         new_row = {c: r.get(c) for c in PICKS_LOG_COLUMNS if c in r}
         new_row["pick_rank"] = i + 1
         new_row["outcome_recorded"] = False
         log_df = pd.concat([log_df, pd.DataFrame([new_row])], ignore_index=True)
-
     log_df.to_csv(args.log, index=False, encoding="utf-8-sig")
 
-    print(f"\n本日の候補（上位{len(selected)}銘柄、明日のウォッチ対象）:")
-    for r in selected:
-        print(f"  {r['code']} [{r['driver']}] {r['pattern']} RSI={r['rsi']} "
-              f"quant_all_pass={r['quant_all_pass']}")
+    pick_date = candidates[0]["pick_date"] if candidates else "-"
+    print_report(selected, candidates, funnel, rejected, names, pick_date,
+                 args.top_n, brief=(args.format == "brief"))
 
     completed = log_df[log_df["outcome_recorded"] == True]
     print(f"\n記録済みサンプル数: {len(completed)}件"
