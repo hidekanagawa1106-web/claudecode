@@ -93,11 +93,21 @@ def fetch_daily_bars(code: str, headers: dict, lookback_days: int = 20) -> pd.Da
     return df.sort_values("date").tail(lookback_days).reset_index(drop=True)
 
 
-def load_driver_tags(path: str) -> dict:
+def load_driver_tags(path: str) -> tuple:
+    """(code -> driver, code -> 連動グループ) を返す。
+
+    driver はレポート表示用の細かい分類。group は「同じ材料で一緒に動く」
+    銘柄群で、同日に複数を選ばないための上限判定に使う。
+    連動先を持たない銘柄は group を空欄にし、上限判定の対象外とする。
+    """
     if not path or not os.path.exists(path):
-        return {}
+        return {}, {}
     df = pd.read_csv(path, dtype=str)
-    return dict(zip(df.iloc[:, 0], df.iloc[:, 1]))
+    drivers = dict(zip(df.iloc[:, 0], df.iloc[:, 1]))
+    groups = {}
+    if df.shape[1] >= 3:
+        groups = {c: g for c, g in zip(df.iloc[:, 0], df.iloc[:, 2].fillna(""))}
+    return drivers, groups
 
 
 def load_keep_codes(path: str) -> set:
@@ -126,7 +136,7 @@ def main():
     headers = get_headers()
     codes_df = pd.read_csv(args.codes, dtype=str)
     codes = codes_df.iloc[:, 0].tolist()
-    driver_map = load_driver_tags(args.driver_tags)
+    driver_map, group_map = load_driver_tags(args.driver_tags)
 
     keep_codes = load_keep_codes(args.keep_codes)
     min_turnover_yen = args.min_turnover * 1e8
@@ -147,6 +157,7 @@ def main():
             rows.append({
                 "code": code,
                 "driver": driver_map.get(code, "unclassified"),
+                "group": group_map.get(code, ""),
                 "tier": "core" if is_core else "watch",
                 "last_close": last_close,
                 "avg_volume_20d": df["volume"].mean(),

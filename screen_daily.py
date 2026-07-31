@@ -53,7 +53,7 @@ COLUMN_ALIASES = {
 }
 
 PICKS_LOG_COLUMNS = [
-    "pick_date", "code", "driver", "tier", "pattern", "ma25_break", "volume_ok",
+    "pick_date", "code", "driver", "group", "tier", "pattern", "ma25_break", "volume_ok",
     "rsi", "quant_all_pass", "pick_rank", "prev_close",
     # スコア（順位付けに使用）
     "score", "score_trend", "score_rsi", "score_volume", "score_candle",
@@ -293,6 +293,7 @@ def screen_universe(universe_df: pd.DataFrame, headers: dict, schedule: set):
                 "pick_date": latest["date"],
                 "code": code,
                 "driver": urow.get("driver", "unclassified"),
+                "group": urow.get("group", ""),
                 "tier": urow.get("tier", ""),
                 "pattern": pattern,
                 "ma25_break": cond_ma25_break,
@@ -317,17 +318,26 @@ def screen_universe(universe_df: pd.DataFrame, headers: dict, schedule: set):
 
 
 def select_top_n(candidates: list, top_n: int, max_per_driver: int = 2) -> list:
-    """スコア降順（同点は出来高倍率）で並べ、同じドライバーが
+    """スコア降順（同点は出来高倍率）で並べ、同じ連動グループが
     max_per_driver 銘柄を超えないように上位N銘柄を選ぶ。
+
+    上限は driver(表示用の細かい分類)ではなく group(連動グループ)で掛ける。
+    同じ材料で一緒に動く銘柄を同日に複数持つのを避けるための制限なので、
+    半導体・半導体製造装置・電線DCのように分類が違っても一緒に動く群は
+    まとめて数える必要がある。
+    group が空欄の銘柄は連動先を持たないため、上限判定の対象外とする。
     """
     ranked = sorted(candidates, key=lambda r: (r["score"], r["volume_ratio"]), reverse=True)
-    selected, driver_count = [], {}
+    selected, group_count = [], {}
     for r in ranked:
-        d = r["driver"]
-        if driver_count.get(d, 0) >= max_per_driver:
+        # CSVの空欄は NaN(float) で読まれるため、文字列化してから判定する
+        raw = r.get("group")
+        g = "" if raw is None or pd.isna(raw) else str(raw).strip()
+        if g and group_count.get(g, 0) >= max_per_driver:
             continue
         selected.append(r)
-        driver_count[d] = driver_count.get(d, 0) + 1
+        if g:
+            group_count[g] = group_count.get(g, 0) + 1
         if len(selected) >= top_n:
             break
     return selected
