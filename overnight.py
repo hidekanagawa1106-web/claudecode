@@ -24,10 +24,17 @@ MA25の下にいた。テクニカルだけを見る限り候補には一切出�
 3. 閾値を超えたグループについて、ユニバースの該当銘柄を浮上させる
    このとき前日までのトレンド（MA25の上か下か）は問わない
 
-やらないこと
-------------
-ニュース性の項目（利上げ観測・地政学・通商報道など）は自動判定しない。
-「要確認」として列挙するだけで、判断は朝の確認に委ねる。
+ニュースの扱い
+--------------
+同じ利上げ報道でも、メガバンクには利ざや改善で追い風、自動車には円高要因で
+逆風になる。そこで「事象がどちらに動いたか」と「それが各グループに有利か」を
+分けて持つ。
+
+    項目スコア = 事象の方向(+1/0/-1) × グループの感応度(+1/-1)
+
+方向は共通のトピック定義（強まる語/弱まる語）で1回だけ判定し、感応度は
+グループ側に持たせる。見出しの単語数え上げなので精度には限界があり、
+根拠にした見出しは必ず表示して朝の確認で上書きできるようにしてある。
 
 使い方:
     python overnight.py                    # 直近の米国市場の引けを使う
@@ -122,12 +129,59 @@ def fetch_news(keyword: str, allow: list, hours: int, limit: int,
     return out
 
 
-def evaluate_item(item: dict, asof: str, news_conf: dict = None) -> dict:
+def evaluate_topic(name: str, topic: dict, news_conf: dict, asof: str) -> dict:
+    """トピックの「事象がどちらに動いたか」だけを判定する。
+
+    見出しに含まれる 強まる語 / 弱まる語 を数え、多い方をそのトピックの方向とする。
+    それが各グループにプラスかマイナスかは判定しない。
+    グループ側の 感応度 を掛けて初めて点数になる。
+
+    見出しだけの単語数え上げなので精度には限界がある。
+    「据え置き」と「利上げ」が同居する見出しは相殺されて中立になる。
+    根拠にした見出しは全部表示するので、違うと思ったら朝の確認で上書きしてほしい。
+    """
+    arts, up, down, hits = [], 0, 0, []
+    seen = set()
+    for kw in topic.get("検索", []):
+        for a in fetch_news(kw, news_conf.get("許可ソース", []),
+                            news_conf.get("収集時間", 36),
+                            news_conf.get("最大件数", 5), asof):
+            if a["見出し"] in seen:
+                continue
+            seen.add(a["見出し"])
+            arts.append(a)
+    for a in arts:
+        u = [w for w in topic.get("強まる語", []) if w in a["見出し"]]
+        d = [w for w in topic.get("弱まる語", []) if w in a["見出し"]]
+        up += len(u)
+        down += len(d)
+        if u or d:
+            hits.append((a, u, d))
+    direction = 1 if up > down else (-1 if down > up else 0)
+    return {"名前": name, "方向": direction, "強": up, "弱": down,
+            "見出し": arts[:news_conf.get("最大件数", 5)], "根拠": hits}
+
+
+def evaluate_item(item: dict, asof: str, news_conf: dict = None, topics: dict = None) -> dict:
     """1項目を採点する。tickerが無い項目は採点せず、ニュース見出しを添えて返す。"""
     tickers = item.get("ticker") or []
     out = {"名前": item["名前"], "自動": bool(tickers), "変化率": None,
-           "点": 0, "急変": False, "基準日": None, "内訳": [], "見出し": []}
+           "点": 0, "急変": False, "基準日": None, "内訳": [], "見出し": [],
+           "方向": None, "根拠": [], "語数": None}
     if not tickers:
+        # トピック参照つきの項目は、事象の方向 × このグループの感応度 で採点する
+        tname = item.get("トピック")
+        sens = item.get("感応度")
+        out["トピック"], out["感応度"] = tname, sens
+        if tname and topics and tname in topics:
+            t = topics[tname]
+            out["自動"] = True
+            out["方向"] = t["方向"]
+            out["点"] = t["方向"] * (sens if sens is not None else 1)
+            out["見出し"] = t["見出し"]
+            out["根拠"] = t["根拠"]
+            out["語数"] = (t["強"], t["弱"])
+            return out
         kws = item.get("検索") or []
         if kws and news_conf:
             seen = set()
@@ -180,6 +234,9 @@ def main():
 
     news_conf = (conf.get("共通") or {}).get("ニュース") or {}
     asof = args.asof
+    # トピックは1回だけ取得して全グループで使い回す
+    topics = {n: evaluate_topic(n, t, news_conf, asof)
+              for n, t in ((conf.get("共通") or {}).get("ニューストピック") or {}).items()}
     print("=" * 66)
     print(f"【前夜の海外市場シグナル】{'対象: ' + asof + ' の寄り付き向け' if asof else '直近の海外引け'}")
     print("=" * 66)
@@ -189,7 +246,7 @@ def main():
         sc = g.get("朝スコア")
         if not sc:
             continue
-        items = [evaluate_item(i, asof, news_conf) for i in sc["項目"]]
+        items = [evaluate_item(i, asof, news_conf, topics) for i in sc["項目"]]
         total = sum(i["点"] for i in items if i["自動"])
         results[gname] = (items, total, sc["閾値"])
         for i in items:
@@ -225,7 +282,17 @@ def main():
         verdict = "→ 場中に条件を探す" if total >= th else "→ 何もしない"
         print(f"  {gname}  {total:+d} / 閾値 +{th}  {verdict}")
         for i in items:
-            if i["自動"]:
+            if i["自動"] and i.get("方向") is not None:
+                arrow = {1: "強まる", -1: "弱まる", 0: "中立"}[i["方向"]]
+                sens = i.get("感応度")
+                sl = "追い風" if sens and sens > 0 else "逆風"
+                u, d = i.get("語数") or (0, 0)
+                print(f"      {i['名前']:<22} {arrow}({u}語/{d}語) × {sl}  ({i['点']:+d})")
+                for a, uw, dw in (i.get("根拠") or [])[:3]:
+                    tag = "＋" + "".join(uw) if uw else ""
+                    tag += ("／−" + "".join(dw)) if dw else ""
+                    print(f"         ・{a['見出し'][:46]} [{tag}] ({a['発信元']})")
+            elif i["自動"]:
                 mark = " ★急変" if i["急変"] else ""
                 print(f"      {i['名前']:<22} {i['変化率']:+7.2f}%  ({i['点']:+d}){mark}")
             elif i["見出し"]:
