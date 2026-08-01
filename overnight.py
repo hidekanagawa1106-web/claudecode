@@ -79,6 +79,41 @@ def change_before(df: pd.DataFrame, asof: str):
     return round((last / prev - 1) * 100, 2), d["date"].iloc[-1]
 
 
+INTRADAY = ("https://query1.finance.yahoo.com/v8/finance/chart/{}"
+            "?range=5d&interval=30m&includePrePost=true")
+
+
+def fetch_afterhours(ticker: str):
+    """米国の通常取引の終値と、その後の時間外の最終値を比べる。
+
+    米国企業の決算は引け後(16:00 ET)に出るため、通常取引の終値には反応が載らない。
+    日本の寄り付き9:00 JSTは20:00 ETで、米国の時間外取引が終わる時刻にあたる。
+    つまり引け後の決算反応は、日本市場が開く前にすべて時間外の値動きとして見える。
+
+    Yahooの分足は直近5営業日しか遡れないため、過去日の再現には使えない。
+    """
+    import zoneinfo
+    try:
+        et = zoneinfo.ZoneInfo("America/New_York")
+        url = INTRADAY.format(requests.utils.quote(ticker, safe=""))
+        j = requests.get(url, headers=UA, timeout=30).json()["chart"]["result"][0]
+        bars = [(dt.datetime.fromtimestamp(t, et), c)
+                for t, c in zip(j["timestamp"], j["indicators"]["quote"][0]["close"])
+                if c is not None]
+        if not bars:
+            return None
+        day = bars[-1][0].date()
+        today = [b for b in bars if b[0].date() == day]
+        regular = [v for d, v in today if (d.hour, d.minute) <= (16, 0) and d.hour >= 9]
+        post = [v for d, v in today if d.hour >= 16]
+        if not regular or not post:
+            return None
+        return {"終値": regular[-1], "時間外": post[-1], "日付": str(day),
+                "変化率": round((post[-1] / regular[-1] - 1) * 100, 2)}
+    except Exception:
+        return None
+
+
 GNEWS = "https://news.google.com/rss/search?q={}&hl=ja&gl=JP&ceid=JP:ja"
 
 
@@ -167,7 +202,7 @@ def evaluate_item(item: dict, asof: str, news_conf: dict = None, topics: dict = 
     tickers = item.get("ticker") or []
     out = {"名前": item["名前"], "自動": bool(tickers), "変化率": None,
            "点": 0, "急変": False, "基準日": None, "内訳": [], "見出し": [],
-           "方向": None, "根拠": [], "語数": None}
+           "方向": None, "根拠": [], "語数": None, "時間外": []}
     if not tickers:
         # トピック参照つきの項目は、事象の方向 × このグループの感応度 で採点する
         tname = item.get("トピック")
@@ -211,6 +246,17 @@ def evaluate_item(item: dict, asof: str, news_conf: dict = None, topics: dict = 
     if th:
         # 平均でも個別でも、どちらかが閾値を超えたら急変とみなす
         out["急変"] = abs(avg) >= th or any(abs(c) >= th for _, c in chgs)
+
+    # 引け後に決算が出ると通常取引の終値には載らないため、時間外も見る
+    if item.get("時間外監視") and not asof:
+        ah = []
+        for t in tickers:
+            r = fetch_afterhours(t)
+            if r and abs(r["変化率"]) >= 1.0:
+                ah.append((t, r))
+        out["時間外"] = ah
+        if th and any(abs(r["変化率"]) >= th for _, r in ah):
+            out["急変"] = True
     return out
 
 
@@ -295,6 +341,9 @@ def main():
             elif i["自動"]:
                 mark = " ★急変" if i["急変"] else ""
                 print(f"      {i['名前']:<22} {i['変化率']:+7.2f}%  ({i['点']:+d}){mark}")
+                for t, r in (i.get("時間外") or []):
+                    print(f"         ・{t} 時間外 {r['変化率']:+.2f}% "
+                          f"({r['終値']:.2f} → {r['時間外']:.2f}) ← 引け後の決算反応の可能性")
             elif i["見出し"]:
                 print(f"      {i['名前']:<22}    ニュース{len(i['見出し'])}件 → 内容は要判断")
                 for a in i["見出し"]:
