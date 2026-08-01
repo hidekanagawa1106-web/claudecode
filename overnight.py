@@ -72,12 +72,73 @@ def change_before(df: pd.DataFrame, asof: str):
     return round((last / prev - 1) * 100, 2), d["date"].iloc[-1]
 
 
-def evaluate_item(item: dict, asof: str) -> dict:
-    """1項目を採点する。tickerが無い項目は判定せず「要確認」で返す。"""
+GNEWS = "https://news.google.com/rss/search?q={}&hl=ja&gl=JP&ceid=JP:ja"
+
+
+def fetch_news(keyword: str, allow: list, hours: int, limit: int,
+               asof: str = None) -> list:
+    """Google News のキーワード検索から、許可した発信元の見出しだけを拾う。
+
+    見出しと配信元・配信時刻を集めるところまでで、内容の良し悪しは判定しない。
+    同じ利上げ報道でも銀行にはプラス、自動車にはマイナスに働くため、
+    +1/-1 の判断は文意を読める朝の確認に委ねる。
+
+    Bloombergとロイターは自社のRSSを直接取得できなかったが、
+    Google News 経由なら発信元として拾える。
+    """
+    import email.utils as eut
+    import xml.etree.ElementTree as ET
+
+    try:
+        url = GNEWS.format(requests.utils.quote(keyword))
+        r = requests.get(url, headers=UA, timeout=30)
+        r.raise_for_status()
+        items = ET.fromstring(r.content).findall(".//item")
+    except Exception:
+        return []
+
+    base = (dt.datetime.strptime(asof, "%Y-%m-%d") if asof else dt.datetime.utcnow())
+    out = []
+    for it in items:
+        src = (it.findtext("source") or "").strip()
+        if allow and not any(a in src for a in allow):
+            continue
+        pub = it.findtext("pubDate")
+        when = None
+        if pub:
+            try:
+                when = eut.parsedate_to_datetime(pub).replace(tzinfo=None)
+            except Exception:
+                pass
+        if when:
+            age = (base - when).total_seconds() / 3600
+            if age > hours or age < -24:
+                continue
+        title = (it.findtext("title") or "").split(" - ")[0].strip()
+        out.append({"見出し": title, "発信元": src,
+                    "日時": when.strftime("%m-%d %H:%M") if when else "-"})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def evaluate_item(item: dict, asof: str, news_conf: dict = None) -> dict:
+    """1項目を採点する。tickerが無い項目は採点せず、ニュース見出しを添えて返す。"""
     tickers = item.get("ticker") or []
     out = {"名前": item["名前"], "自動": bool(tickers), "変化率": None,
-           "点": 0, "急変": False, "基準日": None, "内訳": []}
+           "点": 0, "急変": False, "基準日": None, "内訳": [], "見出し": []}
     if not tickers:
+        kws = item.get("検索") or []
+        if kws and news_conf:
+            seen = set()
+            for kw in kws:
+                for a in fetch_news(kw, news_conf.get("許可ソース", []),
+                                    news_conf.get("収集時間", 36),
+                                    news_conf.get("最大件数", 5), asof):
+                    if a["見出し"] not in seen:
+                        seen.add(a["見出し"])
+                        out["見出し"].append(a)
+            out["見出し"] = out["見出し"][:news_conf.get("最大件数", 5)]
         return out
     chgs = []
     for t in tickers:
@@ -117,6 +178,7 @@ def main():
     except Exception:
         pass
 
+    news_conf = (conf.get("共通") or {}).get("ニュース") or {}
     asof = args.asof
     print("=" * 66)
     print(f"【前夜の海外市場シグナル】{'対象: ' + asof + ' の寄り付き向け' if asof else '直近の海外引け'}")
@@ -127,7 +189,7 @@ def main():
         sc = g.get("朝スコア")
         if not sc:
             continue
-        items = [evaluate_item(i, asof) for i in sc["項目"]]
+        items = [evaluate_item(i, asof, news_conf) for i in sc["項目"]]
         total = sum(i["点"] for i in items if i["自動"])
         results[gname] = (items, total, sc["閾値"])
         for i in items:
@@ -166,8 +228,12 @@ def main():
             if i["自動"]:
                 mark = " ★急変" if i["急変"] else ""
                 print(f"      {i['名前']:<22} {i['変化率']:+7.2f}%  ({i['点']:+d}){mark}")
+            elif i["見出し"]:
+                print(f"      {i['名前']:<22}    ニュース{len(i['見出し'])}件 → 内容は要判断")
+                for a in i["見出し"]:
+                    print(f"         ・[{a['日時']}] {a['見出し'][:52]} ({a['発信元']})")
             else:
-                print(f"      {i['名前']:<22}    要確認  (自動取得できません)")
+                print(f"      {i['名前']:<22}    該当ニュースなし / 自動取得不可")
         veto = conf["グループ"][gname].get("見送り") or []
         for v in veto:
             print(f"      ⚠ 見送り条件: {v}")
