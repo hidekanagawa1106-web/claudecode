@@ -38,7 +38,38 @@
 python entry_check.py 8306 --price 3571
 ```
 
-## 2. 朝の統合ブリーフィング（平日 8:00 想定）
+## 2. 取引の振り返り（決済したあと）
+
+約定履歴の画像かCSV、または口頭で内容を伝えると起動する。
+
+```
+/trade-review
+今日の取引を報告
+決済したので振り返って
+損切りになった
+```
+
+**必要な5項目**: 銘柄コード／エントリー日と価格／決済日と価格／株数／決済理由。
+足りなければ聞き返す。発注した逆指値・指値、朝スコア、エントリー根拠もあると精度が上がる。
+
+**返ってくるもの**
+- 損益と保有営業日数
+- ルール遵守の確認（順張り4条件・禁止事項・逆指値を動かさなかったか）
+- **決済水準の検証** — 保有中の最大含み益／含み損、決済後の値動きから
+  「損切りが浅すぎたか」「利確が早すぎたか」を数字で判定
+- `trades.csv` への記録（同じ日・同じ銘柄は二重に記録しない）
+
+スクリプトを直接叩く場合。
+
+```
+python trade_review.py --code 8306 --entry-date 2026-07-29 --entry-price 3480 \
+  --exit-date 2026-07-30 --exit-price 3525 --shares 100 \
+  --stop 3341 --target 3724 --reason 利確 --rule 遵守 --save
+
+python trade_review.py --stats     # 累積の勝率・平均損益・§9の判定基準
+```
+
+## 3. 朝の統合ブリーフィング（平日 8:00 想定）
 
 ```
 python morning.py
@@ -63,7 +94,7 @@ python overnight.py
 python overnight.py --asof 2026-07-31   # 過去日の再現（時間外はスキップされる）
 ```
 
-## 3. ユニバース更新（月1回程度）
+## 4. ユニバース更新（月1回程度）
 
 ```
 python build_universe.py --codes nikkei225_codes.csv --max-price 5000 \
@@ -73,7 +104,7 @@ python build_universe.py --codes nikkei225_codes.csv --max-price 5000 \
 225銘柄を全部叩くので8〜9分かかる。日経225の構成銘柄が入れ替わったときは
 `nikkei225_codes.csv` の更新が先。
 
-## 4. 参考情報
+## 5. 参考情報
 
 ```
 python fundamentals_report.py --universe universe.csv    # PER・PBR・直近開示日
@@ -90,6 +121,7 @@ python review.py --log picks_log.csv --min-samples 20    # 成績レビュー（
 | `driver_tags.csv` | 銘柄 → ドライバー → 連動グループ | 分類を変えたいとき |
 | `keep_codes.csv` | 条件を満たさなくても残す銘柄 | ウォッチ対象を足したいとき |
 | `universe.csv` | 現在のユニバース74銘柄 | 通常は build_universe.py が生成 |
+| `trades.csv` | 実売買の記録 | trade-review スキルが追記 |
 
 `driver_tags.csv` と `keep_codes.csv` を変えた場合、ユニバースの顔ぶれ自体は
 `build_universe.py` を回さないと変わらない。分類やタグだけの変更なら再取得は不要。
