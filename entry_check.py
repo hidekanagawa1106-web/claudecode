@@ -19,8 +19,10 @@
 
 出せないもの
 ------------
-ORB・VWAP・場中の出来高は分足が要るため判定できない。
+オープニングレンジ(§3-1 条件1)は判定できない。1分足の寄り付き直後が
+欠けるため（2026-07-31 の実測でフジクラは09:19開始でORB窓が丸ごと無かった）。
 板・歩み値も取得できない。ここはチャート画像と本人の目視に委ねる。
+VWAPと場中出来高は計算するが、配信の遅延は未計測。
 
 使い方:
     python entry_check.py 6501
@@ -34,6 +36,60 @@ import yaml
 
 import earnings
 import screen_daily as sd
+
+
+def intraday(code: str) -> dict:
+    """当日の1分足から VWAP と場中の出来高を計算する。
+
+    Yahoo Finance は日本株の1分足を返すが、2つ制約がある。
+
+    1. 寄り付き直後の4〜5分が欠けることがある。2026-07-31 の実測では
+       トヨタ 09:04開始、日立・三菱UFJ・NTT 09:05開始、フジクラに至っては
+       09:19開始で 9:00-9:15 のバーが1本も無かった。
+       オープニングレンジはまさにこの欠けている区間なので、ORBの判定には使えない。
+       ここはチャート画像から目視で確認する。
+    2. 配信の遅延がどの程度かは未計測。場中に実行して実際の画面と
+       突き合わせる必要がある。VWAPは遅延分だけ古い値になりうる。
+    """
+    import datetime as dt
+    import zoneinfo
+
+    import requests
+    try:
+        jst = zoneinfo.ZoneInfo("Asia/Tokyo")
+        url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
+               f"{code}.T?range=1d&interval=1m")
+        j = requests.get(url, headers={"User-Agent": "Mozilla/5.0"},
+                         timeout=25).json()["chart"]["result"][0]
+        q = j["indicators"]["quote"][0]
+        d = pd.DataFrame({
+            "t": [dt.datetime.fromtimestamp(x, jst) for x in j["timestamp"]],
+            "h": q["high"], "l": q["low"], "c": q["close"], "v": q["volume"],
+        }).dropna()
+        if d.empty:
+            return None
+        hm = d["t"].dt.strftime("%H:%M")
+        orb = d[hm <= "09:15"]
+        tp = (d["h"] + d["l"] + d["c"]) / 3
+        vwap = (tp * d["v"]).cumsum() / d["v"].cumsum()
+        last = d.iloc[-1]
+        recent = d["v"].tail(5).sum() / 5
+        avg = d["v"].mean()
+        return {
+            "日付": d["t"].iloc[0].strftime("%Y-%m-%d"),
+            "最初のバー": d["t"].iloc[0].strftime("%H:%M"),
+            "最終バー": d["t"].iloc[-1].strftime("%H:%M"),
+            "本数": len(d),
+            "ORB本数": len(orb),
+            "ORB高値": orb["h"].max() if len(orb) else None,
+            "ORB安値": orb["l"].min() if len(orb) else None,
+            "現在値": last["c"],
+            "VWAP": round(vwap.iloc[-1], 1),
+            "当日高値": d["h"].max(), "当日安値": d["l"].min(),
+            "直近5分出来高倍率": round(recent / avg, 2) if avg else 0,
+        }
+    except Exception:
+        return None
 
 
 def volatility(df: pd.DataFrame, n: int = 14) -> dict:
@@ -157,6 +213,26 @@ def main():
               f"寄り付きで逆指値を飛ばされる可能性がある")
     print("  ※ ポジションサイズは損切り幅から逆算してください（§5）")
 
+    intra = intraday(code)
+    print("\n■ 当日の場中（1分足）")
+    if not intra:
+        print("  1分足を取得できませんでした")
+    else:
+        print(f"  {intra['日付']} {intra['最初のバー']}〜{intra['最終バー']}  {intra['本数']}本")
+        print(f"  現在値 {intra['現在値']:,.1f} / VWAP {intra['VWAP']:,.1f} → "
+              f"価格はVWAPの{'上（買い方優勢）' if intra['現在値'] > intra['VWAP'] else '下'}"
+              f"  ★順張り条件2")
+        print(f"  当日高値 {intra['当日高値']:,.1f} / 安値 {intra['当日安値']:,.1f}"
+              f" / 直近5分の出来高倍率 {intra['直近5分出来高倍率']}倍")
+        if intra["ORB本数"] < 10:
+            print(f"  ⚠ 9:00-9:15のバーが{intra['ORB本数']}本しかありません"
+                  f"（最初のバーが{intra['最初のバー']}）。"
+                  f"オープニングレンジは信頼できないため、チャート画像で確認してください")
+        else:
+            print(f"  参考: 9:00-9:15 高値 {intra['ORB高値']:,.1f} / "
+                  f"安値 {intra['ORB安値']:,.1f}（{intra['ORB本数']}本。欠損があれば不正確）")
+        print("  ※ 配信の遅延は未計測です。画面の値と食い違う場合は画面を優先してください")
+
     print("\n■ 決算")
     sig = earnings.fetch_earnings_signals(code, h, df["date"].tolist())
     sched = earnings.fetch_jpx_schedule()
@@ -191,7 +267,7 @@ def main():
         if moves:
             print("  同グループ銘柄の直近日の動き: " + " / ".join(moves))
 
-    print("\n※ ORB・VWAP・場中の出来高・板は取得できません。チャートで確認してください。")
+    print("\n※ オープニングレンジ(条件1)と板・歩み値は取得できません。チャート画像で確認してください。")
     print("※ これは判断材料の一覧であり、売買の推奨ではありません。")
 
 
