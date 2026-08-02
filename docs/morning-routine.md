@@ -4,8 +4,26 @@
 
 ## 状態
 
-**未登録。** Routine の作成には MCP ツールの承認が要り、セッションからは登録できなかった。
-下の設定をそのまま使って登録すること。
+**登録済み。ただし初回実行(2026-08-03 8:00 JST)は失敗した。**
+
+原因はコードではなく Routine の設定。起動したセッションにリポジトリが1つも
+紐付いておらず、`git checkout` の前段で止まった。
+
+```
+/home/user           空。gitリポジトリではない
+GitHub API           "sessions are bound to their configured repositories"（設定済みリポジトリなし）
+git認証プロキシ        認証対象がなく clone/ls-remote が全滅
+```
+
+**対応: Routine の設定で対象リポジトリを指定すること。**
+
+| 項目 | 値 |
+|---|---|
+| リポジトリ | `hidekanagawa1106-web/claudecode` |
+| ブランチ | `claude/japan-swing-trade-watchlist-bk7bpd` |
+
+保険として、プロンプト側にも `add_repo` での自力復旧手順を入れてある
+（`docs/routine-prompt.txt` の手順1）。設定が正しければこの経路は通らない。
 
 `CronCreate` は代用にならない。セッション限定で、セッション終了とともに消える（かつ7日で失効）。
 コンテナは非永続なので、日々の定期実行には Routine が必要。
