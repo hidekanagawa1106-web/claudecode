@@ -1,5 +1,14 @@
 # 使い方（コマンド一覧）
 
+## 0. 初回セットアップ
+
+```
+pip install -r requirements.txt
+```
+
+pandas・numpy・requests・PyYAML・openpyxl が要る。openpyxl は earnings.py が
+JPXの決算発表予定日(Excel)を読むのに使う。
+
 ## 1. エントリー判定（買いたいときに都度）
 
 **チャート画像を添付して、次のいずれかを送る。**
