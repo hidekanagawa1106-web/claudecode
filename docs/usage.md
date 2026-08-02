@@ -146,4 +146,8 @@ python review.py --log picks_log.csv --min-samples 20    # 成績レビュー（
 
 ## まだ自動実行していないもの
 
-平日8:00の定期実行は未登録。当面は手動で `python morning.py` を回す。
+平日8:00の定期実行は**未登録**。Routine の作成に MCP ツールの承認が必要で、
+セッションからは登録できなかった。設定値とプロンプトは `docs/morning-routine.md`
+にまとめてあるので、それを使って登録すること。当面は手動で `python morning.py` を回す。
+
+cron は `0 23 * * 0-4`（UTC評価のため、平日8:00 JST は日〜木の23:00 UTC）。
