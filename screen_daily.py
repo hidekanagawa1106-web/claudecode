@@ -61,6 +61,10 @@ PICKS_LOG_COLUMNS = [
     # 決算（記録のみ。順位付けには一切使わない）
     "earnings_days_ago", "earnings_op_yoy", "earnings_progress",
     "earnings_revision", "earnings_next", "catalyst_reasons",
+    # マクロ（記録のみ。順位付けには一切使わない）
+    # 商社以外の5グループは閾値・感応度が未検証のため、点数に混ぜずに記録だけ残す。
+    # サンプルが貯まれば「マクロが良い日の候補は成績が良かったか」を後から測れる。
+    "macro_score", "macro_threshold",
     # 成果
     "outcome_date", "next_open", "next_high", "next_low", "next_close",
     "gap_pct", "day_change_pct", "outcome_recorded",
@@ -420,10 +424,23 @@ def _mark(value: int, high: int, mid: int) -> str:
     return "◎" if value >= high else ("○" if value >= mid else ("△" if value > 0 else "×"))
 
 
+def format_macro(group: str, group_scores: dict) -> str:
+    """所属グループの朝スコアを「+2/+2」の形にする。判定はせず、材料として並べるだけ。"""
+    if not group_scores:
+        return ""
+    hit = group_scores.get((group or "").strip())
+    if hit is None:
+        return "  -  "
+    total, threshold = hit
+    return f"{total:+d}/{threshold:+d}"
+
+
 def print_report(selected, candidates, funnel, rejected, names, pick_date,
-                 top_n, brief=False, flagged=None, catalysts=None):
+                 top_n, brief=False, flagged=None, catalysts=None,
+                 group_scores=None):
     fmt_e = lambda v: "-" if v is None or pd.isna(v) else v
     nm = lambda c: names.get(c, "")
+    mac = lambda r: format_macro(r.get("group"), group_scores)
 
     print("=" * 66)
     print(f"【翌日ウォッチ優先リスト】  データ: {pick_date} 大引けまで")
@@ -440,7 +457,8 @@ def print_report(selected, candidates, funnel, rejected, names, pick_date,
     if not selected:
         print("  該当なし（上昇トレンド条件を満たす銘柄がありませんでした）")
     else:
-        print("  順 コード 銘柄               ドライバー      点数  ト 過 出 パ  決算")
+        head = "  順 コード 銘柄               ドライバー      点数  ト 過 出 パ  決算"
+        print(head + ("     マクロ" if group_scores else ""))
         for i, r in enumerate(selected, 1):
             ec = "決算前" if r["earnings_next"] else (
                 f"{int(r['earnings_days_ago'])}日前" if r.get("earnings_days_ago") is not None
@@ -448,8 +466,11 @@ def print_report(selected, candidates, funnel, rejected, names, pick_date,
             print(f"  {i:>2} {r['code']:<5} {nm(r['code'])[:16]:<17} {r['driver'][:12]:<13}"
                   f" {r['score']:>4}  {_mark(r['score_trend'],35,25)} "
                   f"{_mark(r['score_rsi'],20,12)} {_mark(r['score_volume'],15,10)} "
-                  f"{_mark(r['score_candle']+10,25,15)}  {ec}")
+                  f"{_mark(r['score_candle']+10,25,15)}  {ec:<6}"
+                  + (f" {mac(r):>7}" if group_scores else ""))
         print("  ト=トレンド 過=過熱度(RSI) 出=出来高 パ=ローソク足")
+        if group_scores:
+            print("  マクロ=所属グループの朝スコア/閾値。点数には加算していません（材料として併記）。")
 
     if not brief and selected:
         print("\n■ 上位銘柄の所見")
@@ -499,7 +520,8 @@ def print_report(selected, candidates, funnel, rejected, names, pick_date,
         print("\n■ 材料検知（上昇トレンド条件は満たさないが、明確な需給変化あり）")
         for r in flagged:
             print(f"  {r['code']} {nm(r['code'])[:14]:<15} {r['_chg']:+6.2f}%  "
-                  f"RSI {r['rsi']:>4}  出来高 {r['volume_ratio']:.2f}倍")
+                  f"RSI {r['rsi']:>4}  出来高 {r['volume_ratio']:.2f}倍"
+                  + (f"  マクロ {mac(r)}" if group_scores else ""))
             print(f"     {r['catalyst_reasons']}")
         shown = {r["code"] for r in flagged}
         rest = [r for r in (catalysts or []) if r["code"] not in shown]

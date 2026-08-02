@@ -62,6 +62,7 @@ def main():
     nm_of = lambda c: names.get(c, "")
 
     hot = []
+    group_scores = {}   # グループ名 -> (朝スコア, 閾値)。候補一覧に材料として併記する
     if not args.skip_overnight:
         news_conf = (conf.get("共通") or {}).get("ニュース") or {}
         topics = {n: ov.evaluate_topic(n, t, news_conf, None)
@@ -76,6 +77,7 @@ def main():
                 continue
             items = [ov.evaluate_item(i, None, news_conf, topics) for i in sc["項目"]]
             total = sum(i["点"] for i in items if i["自動"])
+            group_scores[gname] = (total, sc["閾値"])
             up = [i for i in items if i["急変"] and (i["変化率"] or 0) > 0]
             for i in items:
                 if i["急変"]:
@@ -126,12 +128,15 @@ def main():
         for i, r in enumerate(selected):
             row = {c: r.get(c) for c in sd.PICKS_LOG_COLUMNS if c in r}
             row.update({"track": "順張り", "pick_rank": i + 1, "outcome_recorded": False})
+            m = group_scores.get((r.get("group") or "").strip())
+            if m:
+                row["macro_score"], row["macro_threshold"] = m
             log_df = pd.concat([log_df, pd.DataFrame([row])], ignore_index=True)
         log_df.to_csv(args.log, index=False, encoding="utf-8-sig")
 
     sd.print_report(selected, cands, funnel, rejected, names, pick_date or "-",
                     args.top_n, brief=(args.format == "brief"),
-                    flagged=[], catalysts=catalysts)
+                    flagged=[], catalysts=catalysts, group_scores=group_scores)
 
     print("\n" + "=" * 66)
     print("【朝の統合ブリーフィング】第3部 — 材料 × テクニカルの交差")
