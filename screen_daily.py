@@ -109,6 +109,30 @@ def get_with_retry(url: str, params: dict, headers: dict, max_retries: int = 5):
     return resp
 
 
+def trading_day_status(date: str, headers: dict) -> tuple:
+    """その日が東証の営業日かを返す。(営業日か, 区分の説明) のタプル。
+
+    「前回と pick_date が同じなら休場日」という判定は成り立たない。
+    日足は前営業日までしか無いので、月曜の朝は必ず金曜の日付になり、
+    直前に手動実行していれば pick_date は当然一致する。それで休場日と
+    判断すると、週明けという最も配信が要る朝を落とす（2026-08-03に発生）。
+
+    HolDiv: 0=非営業日 1=営業日 2=東証半日立会日 3=祝日(現物は休み)
+    """
+    label = {"0": "非営業日（土日）", "1": "営業日",
+             "2": "半日立会", "3": "休場日（祝日）"}
+    try:
+        r = get_with_retry(f"{API_BASE}/markets/calendar",
+                           {"from": date, "to": date}, headers)
+        rows = r.json().get("data") or []
+        if not rows:
+            return None, "判定不可（カレンダーに該当日なし）"
+        div = str(rows[0].get("HolDiv", "")).strip()
+        return div in ("1", "2"), label.get(div, f"不明な区分 {div}")
+    except Exception as e:
+        return None, f"判定不可（{type(e).__name__}）"
+
+
 def fetch_daily_bars(code: str, headers: dict, lookback_days: int = 120) -> pd.DataFrame:
     params = {"code": code}
     resp = get_with_retry(f"{API_BASE}/equities/bars/daily", params, headers)

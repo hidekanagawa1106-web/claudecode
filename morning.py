@@ -30,6 +30,7 @@
 """
 
 import argparse
+import datetime as dt
 
 import pandas as pd
 import yaml
@@ -60,6 +61,17 @@ def main():
     except Exception:
         pass
     nm_of = lambda c: names.get(c, "")
+
+    today = dt.date.today().isoformat()
+    is_open, day_label = sd.trading_day_status(today, sd.get_headers())
+    print("=" * 66)
+    print(f"【朝の統合ブリーフィング】{today}  東証: {day_label}")
+    print("=" * 66)
+    if is_open is False:
+        print("\n  本日は取引がありません。ブリーフィングは出しません。")
+        print("  ※ 日足は前営業日までしか無いため、pick_date が前回と同じでも")
+        print("     休場日とは限りません。判定はこのカレンダーだけを根拠にしています。")
+        return
 
     hot = []
     group_scores = {}   # グループ名 -> (朝スコア, 閾値)。候補一覧に材料として併記する
