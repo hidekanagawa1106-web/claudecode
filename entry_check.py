@@ -15,7 +15,8 @@
 3. 値動きの大きさ（日中値幅・ギャップ幅の実測）
 4. §5 に沿った損切り・利確の推奨値と、その妥当性チェック
 5. 決算の予定と直近の開示
-6. 連動グループと連動確認銘柄の当日の動き
+6. 逆張り4条件(§3-2)の充足状況（3分足または5分足）
+7. 連動グループと連動確認銘柄の当日の動き
 
 出せないもの
 ------------
@@ -27,6 +28,7 @@ VWAPと場中出来高は計算するが、配信の遅延は未計測。
 使い方:
     python entry_check.py 6501
     python entry_check.py 6501 --price 5320   # 今の株価を指定して評価
+    python entry_check.py 6501 --interval 3m  # 逆張り条件を3分足で見る
 """
 
 import argparse
@@ -92,6 +94,91 @@ def intraday(code: str) -> dict:
         return None
 
 
+def fetch_bars(code: str, interval: str) -> pd.DataFrame:
+    """場中の足を取る。3分足はYahooに存在しないので1分足から合成する。
+
+    interval=3m は Bad Request になる。1分足は7営業日まで遡れるので、
+    そこから3分足を作る。5分足はそのまま1ヶ月分取れる。
+    """
+    import datetime as dt
+    import zoneinfo
+
+    import requests
+    jst = zoneinfo.ZoneInfo("Asia/Tokyo")
+    src, rng = ("1m", "5d") if interval == "3m" else ("5m", "1mo")
+    url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
+           f"{code}.T?range={rng}&interval={src}")
+    j = requests.get(url, headers={"User-Agent": "Mozilla/5.0"},
+                     timeout=30).json()["chart"]["result"][0]
+    q = j["indicators"]["quote"][0]
+    d = pd.DataFrame({
+        "t": [dt.datetime.fromtimestamp(x, jst) for x in j["timestamp"]],
+        "o": q["open"], "h": q["high"], "l": q["low"], "c": q["close"],
+        "v": q["volume"],
+    }).dropna().reset_index(drop=True)
+    if interval == "3m":
+        d = (d.set_index("t").resample("3min")
+             .agg({"o": "first", "h": "max", "l": "min", "c": "last", "v": "sum"})
+             .dropna().reset_index())
+    # 末尾に出来高0の足が付くことがある（15:30の引け足など）。
+    # そのまま最終足として扱うと出来高倍率が0倍になるので落とす。
+    while len(d) and d["v"].iloc[-1] == 0:
+        d = d.iloc[:-1]
+    return d.reset_index(drop=True)
+
+
+def counter_trend(code: str, interval: str = "5m") -> dict:
+    """逆張り4条件（§3-2）の充足状況を場中の足から出す。
+
+    §3-2 は朝のスクリーニング条件ではなく、場中に「いま買ってよいか」を
+    判定する条件。したがって日足ではなく分足で見る。
+
+    判定はしない。どの条件が立っているかを並べるだけで、
+    エントリーの可否はHideさん自身が決める。
+
+    検証について: Yahooの分足は1ヶ月(22営業日)しか遡れないため、
+    この4条件が有効かどうかは手元のデータでは確かめられない。
+    22営業日・74銘柄で全条件の同時成立は33回、1時間後のリターンは
+    母集団を +0.116pt 上回るが勝率は42%と母集団の49%を下回った。
+    33サンプルでは何も結論できない。閾値は運用方針のまま触っていない。
+    """
+    import numpy as np
+    try:
+        d = fetch_bars(code, interval)
+        if len(d) < 25:
+            return {"エラー": f"{interval}の足が{len(d)}本しかありません"}
+        c, o, hi, lo, v = d["c"], d["o"], d["h"], d["l"], d["v"]
+        ma20, sd20 = c.rolling(20).mean(), c.rolling(20).std()
+        bb_low = ma20 - 2 * sd20
+        delta = c.diff()
+        up = delta.clip(lower=0).ewm(alpha=1 / 14, adjust=False).mean()
+        dn = (-delta.clip(upper=0)).ewm(alpha=1 / 14, adjust=False).mean()
+        rsi = (100 - 100 / (1 + up / dn.replace(0, np.nan))).iloc[-1]
+        vr = (v.iloc[-1] / v.rolling(20).mean().iloc[-1]) if v.rolling(20).mean().iloc[-1] else 0
+
+        body = c.iloc[-1] - o.iloc[-1]
+        upper = hi.iloc[-1] - max(c.iloc[-1], o.iloc[-1])
+        prev_body = o.iloc[-2] - c.iloc[-2]      # 直前が陰線なら正
+        sub = {
+            "陽線": c.iloc[-1] > o.iloc[-1],
+            "直前が陰線": prev_body > 0,
+            "実体が直前陰線の70%以上": prev_body > 0 and body >= prev_body * 0.70,
+            "出来高が直前以上": v.iloc[-1] >= v.iloc[-2],
+            "上ヒゲが実体の30%以下": body > 0 and upper <= body * 0.30,
+        }
+        return {
+            "足": interval, "本数": len(d),
+            "最終バー": d["t"].iloc[-1].strftime("%m-%d %H:%M"),
+            "c1": bool(lo.iloc[-1] <= bb_low.iloc[-1]),
+            "c1詳細": f"安値 {lo.iloc[-1]:,.1f} / -2σ {bb_low.iloc[-1]:,.1f}",
+            "c2": bool(rsi <= 30), "c2詳細": f"RSI {rsi:.1f}",
+            "c3": bool(vr >= 1.5), "c3詳細": f"直近足が20本平均の {vr:.2f}倍",
+            "c4": all(sub.values()), "c4内訳": sub,
+        }
+    except Exception as e:
+        return {"エラー": str(e)[:60]}
+
+
 def volatility(df: pd.DataFrame, n: int = 14) -> dict:
     """日中値幅とギャップ幅の実測。損切り幅が現実的かを見るために使う。"""
     d = df.tail(n + 1)
@@ -138,6 +225,8 @@ def main():
     ap.add_argument("--universe", default="universe.csv")
     ap.add_argument("--map", default="driver_map.yaml")
     ap.add_argument("--names", default="company_master.csv")
+    ap.add_argument("--interval", choices=["3m", "5m"], default="5m",
+                    help="逆張り4条件を見る足。3分足は1分足から合成する")
     args = ap.parse_args()
 
     h = sd.get_headers()
@@ -232,6 +321,27 @@ def main():
             print(f"  参考: 9:00-9:15 高値 {intra['ORB高値']:,.1f} / "
                   f"安値 {intra['ORB安値']:,.1f}（{intra['ORB本数']}本。欠損があれば不正確）")
         print("  ※ 配信の遅延は未計測です。画面の値と食い違う場合は画面を優先してください")
+
+    ct = counter_trend(code, args.interval)
+    print(f"\n■ 逆張り4条件（§3-2）{args.interval}足")
+    if ct.get("エラー"):
+        print(f"  取得できませんでした: {ct['エラー']}")
+    else:
+        marks = [("1. ボリンジャー -2σ タッチ", ct["c1"], ct["c1詳細"]),
+                 ("2. RSI 30以下", ct["c2"], ct["c2詳細"]),
+                 ("3. 出来高急増", ct["c3"], ct["c3詳細"]),
+                 ("4. 反発の陽線1本確定", ct["c4"], "")]
+        print(f"  {ct['本数']}本 / 最終バー {ct['最終バー']}")
+        for lab, ok, detail in marks:
+            print(f"  {'○' if ok else '×'} {lab:<24} {detail}")
+        if not ct["c4"]:
+            ng = [k for k, v in ct["c4内訳"].items() if not v]
+            print(f"     └ 満たしていない要素: {' / '.join(ng)}")
+        n = sum(ct[k] for k in ("c1", "c2", "c3", "c4"))
+        print(f"  → {n}/4。§3-2 は全条件必須のため"
+              + ("成立しています" if n == 4 else "成立していません"))
+        print("  ※ 逆張りは §4 禁止事項1（下降トレンドの途中で買う）の例外です。"
+              "順張り4条件が揃わない日の補完として使ってください")
 
     print("\n■ 決算")
     sig = earnings.fetch_earnings_signals(code, h, df["date"].tolist())
