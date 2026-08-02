@@ -213,6 +213,9 @@ def evaluate_item(item: dict, asof: str, news_conf: dict = None, topics: dict = 
             out["自動"] = True
             out["方向"] = t["方向"]
             out["点"] = t["方向"] * (sens if sens is not None else 1)
+            out["採点対象"] = item.get("採点", True)
+            if not out["採点対象"]:
+                out["点"] = 0
             out["見出し"] = t["見出し"]
             out["根拠"] = t["根拠"]
             out["語数"] = (t["強"], t["弱"])
@@ -241,7 +244,16 @@ def evaluate_item(item: dict, asof: str, news_conf: dict = None, topics: dict = 
     out["内訳"] = chgs
     avg = sum(c for _, c in chgs) / len(chgs)
     out["変化率"] = round(avg, 2)
-    out["点"] = 1 if avg > 0 else (-1 if avg < 0 else 0)
+    # 感応度 -1 の項目は、上昇がそのグループにとって逆風であることを表す
+    # (自動車にとっての米10年債利回りなど)。既定は +1。
+    sens = item.get("感応度", 1)
+    out["感応度"] = sens
+    out["点"] = (1 if avg > 0 else (-1 if avg < 0 else 0)) * sens
+    # 採点: false の項目は、変化率は表示するが合計には入れない。
+    # 検証で効果が確認できていない指標を、消さずに材料として残すために使う。
+    out["採点対象"] = item.get("採点", True)
+    if not out["採点対象"]:
+        out["点"] = 0
     th = item.get("急変閾値")
     if th:
         # 平均でも個別でも、どちらかが閾値を超えたら急変とみなす
@@ -317,7 +329,9 @@ def main():
         print("\n■ 急変検知（閾値超え）")
         for gname, i in alerts:
             detail = " ".join(f"{t} {c:+.2f}%" for t, c in i["内訳"])
-            arrow = "上昇材料" if (i["変化率"] or 0) > 0 else "下落材料"
+            # そのグループにとって追い風かどうかは点で判断する（感応度を反映）
+            arrow = ("追い風" if i["点"] > 0 else
+                     "逆風" if i["点"] < 0 else "採点対象外")
             print(f"  [{gname}] {i['名前']} 平均 {i['変化率']:+.2f}%  ← {arrow}")
             print(f"      {detail}")
     else:
@@ -333,13 +347,18 @@ def main():
                 sens = i.get("感応度")
                 sl = "追い風" if sens and sens > 0 else "逆風"
                 u, d = i.get("語数") or (0, 0)
-                print(f"      {i['名前']:<22} {arrow}({u}語/{d}語) × {sl}  ({i['点']:+d})")
+                tail = "  ※採点対象外" if not i.get("採点対象", True) else ""
+                print(f"      {i['名前']:<22} {arrow}({u}語/{d}語) × {sl}  ({i['点']:+d}){tail}")
                 for a, uw, dw in (i.get("根拠") or [])[:3]:
                     tag = "＋" + "".join(uw) if uw else ""
                     tag += ("／−" + "".join(dw)) if dw else ""
                     print(f"         ・{a['見出し'][:46]} [{tag}] ({a['発信元']})")
             elif i["自動"]:
                 mark = " ★急変" if i["急変"] else ""
+                if not i.get("採点対象", True):
+                    mark += "  ※採点対象外（材料として表示のみ）"
+                elif (i.get("感応度") or 1) < 0:
+                    mark += "  ※上昇が逆風"
                 print(f"      {i['名前']:<22} {i['変化率']:+7.2f}%  ({i['点']:+d}){mark}")
                 for t, r in (i.get("時間外") or []):
                     print(f"         ・{t} 時間外 {r['変化率']:+.2f}% "

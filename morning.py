@@ -78,7 +78,11 @@ def main():
             items = [ov.evaluate_item(i, None, news_conf, topics) for i in sc["項目"]]
             total = sum(i["点"] for i in items if i["自動"])
             group_scores[gname] = (total, sc["閾値"])
-            up = [i for i in items if i["急変"] and (i["変化率"] or 0) > 0]
+            # 急変が「そのグループにとってプラスか」は点で判断する。
+            # 生の変化率だと、感応度 -1 の指標(自動車の米10年債など)が
+            # 上昇しただけで追い風として浮上してしまう。
+            # 採点対象外の項目は点が0なので、ここでも浮上させない。
+            up = [i for i in items if i["急変"] and i["点"] > 0]
             for i in items:
                 if i["急変"]:
                     alerts.append((gname, i))
@@ -95,8 +99,12 @@ def main():
                     sl = "追い風" if (i.get("感応度") or 0) > 0 else "逆風"
                     print(f"      {i['名前']:<22} {arrow} × {sl}  ({i['点']:+d})")
                 elif i["自動"]:
-                    print(f"      {i['名前']:<22} {i['変化率']:+7.2f}%  ({i['点']:+d})"
-                          f"{' ★急変' if i['急変'] else ''}")
+                    tail = " ★急変" if i["急変"] else ""
+                    if not i.get("採点対象", True):
+                        tail += "  ※採点対象外"
+                    elif (i.get("感応度") or 1) < 0:
+                        tail += "  ※上昇が逆風"
+                    print(f"      {i['名前']:<22} {i['変化率']:+7.2f}%  ({i['点']:+d}){tail}")
                     for t, r in (i.get("時間外") or []):
                         print(f"         ・{t} 時間外 {r['変化率']:+.2f}% ← 引け後の決算反応の可能性")
                 else:
