@@ -20,9 +20,15 @@
 
 出すもの
 --------
-1. 前夜の海外市場（急変検知・グループ別 朝スコア・浮上したグループ）
-2. 日足のテクニカル候補（順張りトラック）
-3. 両者の交差 — 材料が来ているグループの中でテクニカルも整っている銘柄
+銘柄を主役にしたウォッチリスト。以前はパイプラインの構造をそのまま
+（第1部 海外市場 / 第2部 テクニカル / 第3部 交差）並べていたため、
+「結局どれを見ればいいのか」を読み手が組み立てる必要があった。
+
+1. 今日の地合い — 1〜3行。グループ別の内訳が要るときは overnight.py
+2. ウォッチする銘柄 — なぜ出たかを点数ではなく言葉で
+3. 見送り推奨 — テクニカルは通ったが運用方針に触れる銘柄。5枠は消費しない
+4. 材料が出ている銘柄 — MA25の下。順張り対象外
+5. 本日決算発表
 
 使い方:
     python morning.py
@@ -60,28 +66,23 @@ def main():
         names = dict(zip(nm["code"], nm["CoName"]))
     except Exception:
         pass
-    nm_of = lambda c: names.get(c, "")
 
     today = dt.date.today().isoformat()
     is_open, day_label = sd.trading_day_status(today, sd.get_headers())
-    print("=" * 66)
-    print(f"【朝の統合ブリーフィング】{today}  東証: {day_label}")
-    print("=" * 66)
     if is_open is False:
+        print(f"【朝のウォッチリスト】{today}  東証: {day_label}")
         print("\n  本日は取引がありません。ブリーフィングは出しません。")
         print("  ※ 日足は前営業日までしか無いため、pick_date が前回と同じでも")
         print("     休場日とは限りません。判定はこのカレンダーだけを根拠にしています。")
         return
 
     hot = []
+    macro_notes = []
     group_scores = {}   # グループ名 -> (朝スコア, 閾値)。候補一覧に材料として併記する
     if not args.skip_overnight:
         news_conf = (conf.get("共通") or {}).get("ニュース") or {}
         topics = {n: ov.evaluate_topic(n, t, news_conf, None)
                   for n, t in ((conf.get("共通") or {}).get("ニューストピック") or {}).items()}
-        print("=" * 66)
-        print("【朝の統合ブリーフィング】第1部 — 前夜の海外市場")
-        print("=" * 66)
         alerts = []
         for gname, g in conf["グループ"].items():
             sc = g.get("朝スコア")
@@ -103,48 +104,49 @@ def main():
             elif up:
                 why = " / ".join(f"{i['名前']} {i['変化率']:+.2f}%" for i in up)
                 hot.append((gname, f"プラス方向の急変（{why}）※朝スコアは {total:+d}"))
-            verdict = "→ 場中に条件を探す" if total >= sc["閾値"] else "→ 何もしない"
-            print(f"\n  {gname}  {total:+d} / 閾値 +{sc['閾値']}  {verdict}")
-            for i in items:
-                if i["自動"] and i.get("方向") is not None:
-                    arrow = {1: "強まる", -1: "弱まる", 0: "中立"}[i["方向"]]
-                    sl = "追い風" if (i.get("感応度") or 0) > 0 else "逆風"
-                    print(f"      {i['名前']:<22} {arrow} × {sl}  ({i['点']:+d})")
-                elif i["自動"]:
-                    tail = " ★急変" if i["急変"] else ""
-                    if not i.get("採点対象", True):
-                        tail += "  ※採点対象外"
-                    elif (i.get("感応度") or 1) < 0:
-                        tail += "  ※上昇が逆風"
-                    print(f"      {i['名前']:<22} {i['変化率']:+7.2f}%  ({i['点']:+d}){tail}")
-                    for t, r in (i.get("時間外") or []):
-                        print(f"         ・{t} 時間外 {r['変化率']:+.2f}% ← 引け後の決算反応の可能性")
-                else:
-                    print(f"      {i['名前']:<22}    自動取得不可 → 要確認")
-        if alerts:
-            print("\n  ■ 急変検知")
-            for gname, i in alerts:
-                d = " ".join(f"{t} {c:+.2f}%" for t, c in i["内訳"])
-                print(f"    [{gname}] {i['名前']} {i['変化率']:+.2f}% "
-                      f"← {'上昇材料' if (i['変化率'] or 0) > 0 else '下落材料'}   {d}")
-        print("\n  ※ 8:00時点では米国の時間外取引がまだ続いています（20:00 ETまで）。")
+        # 地合いは1〜3行に畳む。グループ別の内訳が要るときは overnight.py を叩く。
+        tail = [g for g, _ in hot]
+        if tail:
+            macro_notes.append("追い風が出ているグループ: " + " / ".join(tail))
+        else:
+            macro_notes.append(
+                f"セクター単位の追い風はありません（{len(group_scores)}グループすべて閾値未達）。")
+        # 同じ指標が複数グループに属するため、指標ごとに畳んで影響先を並べる
+        # （ドル円は半導体・メガバンク・自動車の3グループに出てくる）
+        by_ind = {}
+        for gname, i in alerts:
+            e = by_ind.setdefault(i["名前"], {"変化率": i["変化率"], "追": [], "逆": []})
+            if i["点"] > 0:
+                e["追"].append(gname)
+            elif i["点"] < 0:
+                e["逆"].append(gname)
+        for name, e in by_ind.items():
+            parts = []
+            if e["追"]:
+                parts.append("追い風: " + "・".join(e["追"]))
+            if e["逆"]:
+                parts.append("逆風: " + "・".join(e["逆"]))
+            macro_notes.append(
+                f"急変 {name} {e['変化率']:+.2f}%"
+                + (f"  → {' / '.join(parts)}" if parts else "  → 採点対象外"))
+        macro_notes.append(
+            "※ 8:00時点では米国の時間外取引がまだ続いています（20:00 ETまで）。")
 
-    print("\n" + "=" * 66)
-    print("【朝の統合ブリーフィング】第2部 — 日足のテクニカル候補")
-    print("=" * 66)
     schedule = earnings.fetch_jpx_schedule()
     log_df = sd.load_log(args.log)
     log_df = sd.record_outcomes(log_df, sd.get_headers())
     cands, catalysts, funnel, rejected = sd.screen_universe(uni, sd.get_headers(), schedule)
-    selected = sd.select_top_n(cands, args.top_n, args.max_per_driver) if cands else []
+    selected, blocked = (sd.select_top_n(cands, args.top_n, args.max_per_driver)
+                         if cands else ([], []))
 
     # 同じ pick_date の行が既にあれば追記しない（二重起動・リトライ対策）
     pick_date = (cands or catalysts)[0]["pick_date"] if (cands or catalysts) else None
     already = (pick_date is not None and len(log_df)
                and (log_df["pick_date"].astype(str) == str(pick_date)).any())
     if already:
-        print(f"\n  ※ {pick_date} の記録は既にあります。追記をスキップしました。")
+        log_note = f"{pick_date} の記録は既にあります。picks_log.csv への追記はしていません。"
     else:
+        log_note = None
         for i, r in enumerate(selected):
             row = {c: r.get(c) for c in sd.PICKS_LOG_COLUMNS if c in r}
             row.update({"track": "順張り", "pick_rank": i + 1, "outcome_recorded": False})
@@ -156,32 +158,10 @@ def main():
 
     sd.print_report(selected, cands, funnel, rejected, names, pick_date or "-",
                     args.top_n, brief=(args.format == "brief"),
-                    flagged=[], catalysts=catalysts, group_scores=group_scores)
-
-    print("\n" + "=" * 66)
-    print("【朝の統合ブリーフィング】第3部 — 材料 × テクニカルの交差")
-    print("=" * 66)
-    hot_names = [g for g, _ in hot]
-    if not hot_names:
-        print("  前夜の海外市場で浮上したグループはありません。")
-    else:
-        picked = {r["code"] for r in selected}
-        for gname, why in hot:
-            sub = uni[uni["group"] == gname]
-            both = [c for c in sub["code"] if c in picked]
-            print(f"\n  [{gname}] {why}")
-            if both:
-                print(f"    ★ テクニカルも整っている: "
-                      + " / ".join(f"{c} {nm_of(c)}" for c in both))
-            else:
-                print("    テクニカル候補との重なりなし"
-                      "（材料はあるが、日足では上昇トレンド条件を満たしていない）")
-            print(f"    グループ全{len(sub)}銘柄: "
-                  + " ".join(f"{c}({nm_of(c)[:6]})" for c in sub["code"][:10]))
-    print("\n  ※ 材料の内容そのものは判定していません。海外決算・マクロを個別にご確認ください。")
-    print("  ※ エントリーは場中の順張り4条件で別途判断してください。"
-          "銘柄ごとの詳細は entry_check.py を使ってください。")
-
+                    flagged=catalysts[:5], catalysts=catalysts,
+                    group_scores=group_scores, blocked=blocked,
+                    macro_notes=macro_notes, today=f"{today}  東証: {day_label}",
+                    log_note=log_note)
 
 if __name__ == "__main__":
     main()

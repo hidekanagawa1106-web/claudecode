@@ -429,6 +429,30 @@ def screen_universe(universe_df: pd.DataFrame, headers: dict, schedule: set):
     return passed, catalysts, funnel, rejected
 
 
+def check_blockers(r: dict) -> list:
+    """運用方針に照らして「今日は入れない」と判定できるものを返す。
+
+    数値で決まる判定はここに置く。文面の整形に任せると日によって出たり
+    出なかったりするため。除外はせず、理由を付けて別枠に回すのが目的
+    （良い銘柄だが今日は入れない、という情報を残す）。
+
+    earnings_next の意味に注意。JPXの kessan.xlsx は前営業日17:00に
+    翌営業日ぶんが載る。朝に取得すると中身は「本日の発表予定」になる
+    （2026-08-03の実測でファイルの予定日は08-03だった）。
+    列名は picks_log.csv の互換のため据え置いている。
+    """
+    out = []
+    if r.get("earnings_next"):
+        out.append("本日が決算発表日 — §2 イベントフィルタ（当日・翌日は半分以下か見送り）")
+    days = r.get("earnings_days_ago")
+    if days is not None and not pd.isna(days) and int(days) == 0:
+        # pick_date は前営業日。そこで発表 = 今日は「決算翌日」
+        out.append("前営業日に決算発表 — §2 イベントフィルタ（決算翌日）")
+    if r.get("rsi") is not None and r["rsi"] > 70:
+        out.append(f"RSI {r['rsi']} — 禁止事項2（RSI 70超えで新規に買う）")
+    return out
+
+
 def select_top_n(candidates: list, top_n: int, max_per_driver: int = 2) -> list:
     """スコア降順（同点は出来高倍率）で並べ、同じ連動グループが
     max_per_driver 銘柄を超えないように上位N銘柄を選ぶ。
@@ -440,8 +464,18 @@ def select_top_n(candidates: list, top_n: int, max_per_driver: int = 2) -> list:
     group が空欄の銘柄は連動先を持たないため、上限判定の対象外とする。
     """
     ranked = sorted(candidates, key=lambda r: (r["score"], r["volume_ratio"]), reverse=True)
-    selected, group_count = [], {}
+    selected, blocked, group_count = [], [], {}
     for r in ranked:
+        if len(selected) >= top_n and len(blocked) >= top_n:
+            break
+        why = check_blockers(r)
+        if why:
+            # ルールに触れる銘柄は5枠を消費させず、理由を付けて別枠に回す
+            if len(blocked) < top_n:
+                blocked.append({**r, "blockers": why})
+            continue
+        if len(selected) >= top_n:
+            continue
         # CSVの空欄は NaN(float) で読まれるため、文字列化してから判定する
         raw = r.get("group")
         g = "" if raw is None or pd.isna(raw) else str(raw).strip()
@@ -450,9 +484,7 @@ def select_top_n(candidates: list, top_n: int, max_per_driver: int = 2) -> list:
         selected.append(r)
         if g:
             group_count[g] = group_count.get(g, 0) + 1
-        if len(selected) >= top_n:
-            break
-    return selected
+    return selected, blocked
 
 
 REVISION_LABEL = {"up": "上方修正", "down": "下方修正",
@@ -474,111 +506,130 @@ def format_macro(group: str, group_scores: dict) -> str:
     return f"{total:+d}/{threshold:+d}"
 
 
+def _reasons(r: dict) -> list:
+    """その銘柄がなぜ候補に出たかを、点数ではなく言葉で並べる。"""
+    out = []
+    d = r.get("earnings_days_ago")
+    # 古い決算は「今日の買い材料」ではない。直近10営業日以内に限って出す。
+    if d is not None and not pd.isna(d) and int(d) <= 9:
+        d = int(d)
+        when = "前営業日" if d == 0 else f"{d + 1}営業日前"
+        yoy = r.get("earnings_op_yoy")
+        line = f"決算が{when}に発表"
+        if yoy is not None and not pd.isna(yoy):
+            line += f"。営業利益が前年同期比 {yoy:+.1f}%"
+        rev = REVISION_LABEL.get(r.get("earnings_revision"))
+        prog = r.get("earnings_progress")
+        if rev == "上方修正":
+            line += "。通期予想を上方修正"
+        if prog is not None and not pd.isna(prog):
+            line += f"。進捗率 {prog:.1f}%"
+        out.append(line)
+    else:
+        out.append("直近10営業日以内の決算発表なし（新しい材料は出ていない）")
+    if r.get("pattern") and r["pattern"] != "-":
+        out.append(f"ローソク足は{r['pattern']}")
+    if r.get("perfect_order"):
+        out.append("MA5 > MA25 > MA75 のパーフェクトオーダー")
+    else:
+        out.append("MA25の上にあるがパーフェクトオーダーではない（トレンドは弱め）")
+    vr = r.get("volume_ratio")
+    if vr:
+        out.append(f"出来高は平均の{vr:.2f}倍")
+    rsi = r.get("rsi")
+    if rsi is not None:
+        if rsi >= 65:
+            note = "やや過熱。飛びつきに注意"
+        elif rsi >= 50:
+            note = "過熱していない"
+        else:
+            note = "上昇の勢いは強くない"
+        out.append(f"RSI {rsi} — {note}")
+    return out
+
+
 def print_report(selected, candidates, funnel, rejected, names, pick_date,
                  top_n, brief=False, flagged=None, catalysts=None,
-                 group_scores=None):
-    fmt_e = lambda v: "-" if v is None or pd.isna(v) else v
+                 group_scores=None, blocked=None, macro_notes=None,
+                 today=None, log_note=None):
+    """銘柄を主役にしたウォッチリストを出す。
+
+    以前はパイプラインの構造（第1部/第2部/第3部）をそのまま並べていたため、
+    「結局どれを見ればいいのか」を読み手が組み立てる必要があった。
+    ここでは 地合い → ウォッチ → 見送り → 明日以降 の順に、
+    判断に必要な形で出す。
+    """
     nm = lambda c: names.get(c, "")
-    mac = lambda r: format_macro(r.get("group"), group_scores)
+    bar = "━" * 60
 
-    print("=" * 66)
-    print(f"【翌日ウォッチ優先リスト】  データ: {pick_date} 大引けまで")
-    print("=" * 66)
+    print(bar)
+    print(f"【朝のウォッチリスト】{today or pick_date}")
+    print(bar)
 
-    if not brief:
-        print("\n■ 絞り込みファネル")
-        print(f"  母集団                              {funnel['母集団']:>3}")
-        print(f"  └ 上昇トレンド(終値>MA25 & MA25上向き)  {funnel['上昇トレンド']:>3}"
-              f"  (-{funnel['母集団'] - funnel['上昇トレンド'] - funnel['データ不足']})")
-        print(f"     └ ドライバー上限2銘柄で上位{top_n}銘柄を提示 → {len(selected)}")
+    print("\n■ 今日の地合い\n")
+    for line in (macro_notes or ["（前夜の海外市場は未取得です）"]):
+        print(f"  {line}")
 
-    print("\n■ 優先度ランキング")
+    print(f"\n\n■ ウォッチする銘柄  {len(selected)}件\n")
     if not selected:
-        print("  該当なし（上昇トレンド条件を満たす銘柄がありませんでした）")
-    else:
-        head = "  順 コード 銘柄               ドライバー      点数  ト 過 出 パ  決算"
-        print(head + ("     マクロ" if group_scores else ""))
-        for i, r in enumerate(selected, 1):
-            ec = "決算前" if r["earnings_next"] else (
-                f"{int(r['earnings_days_ago'])}日前" if r.get("earnings_days_ago") is not None
-                and not pd.isna(r["earnings_days_ago"]) and r["earnings_days_ago"] <= 3 else "-")
-            print(f"  {i:>2} {r['code']:<5} {nm(r['code'])[:16]:<17} {r['driver'][:12]:<13}"
-                  f" {r['score']:>4}  {_mark(r['score_trend'],35,25)} "
-                  f"{_mark(r['score_rsi'],20,12)} {_mark(r['score_volume'],15,10)} "
-                  f"{_mark(r['score_candle']+10,25,15)}  {ec:<6}"
-                  + (f" {mac(r):>7}" if group_scores else ""))
-        print("  ト=トレンド 過=過熱度(RSI) 出=出来高 パ=ローソク足")
-        if group_scores:
-            print("  マクロ=所属グループの朝スコア/閾値。点数には加算していません（材料として併記）。")
+        print("  該当なし。上昇トレンド条件を満たし、かつルールに触れない銘柄が")
+        print("  ありませんでした。今日は無理に探さないでください。")
+    for i, r in enumerate(selected, 1):
+        g = r.get("group")
+        g = "" if g is None or pd.isna(g) else str(g).strip()
+        head = f"  {i}. {r['code']} {nm(r['code'])}"
+        print(f"{head}   {r['prev_close']:,.0f}円   {r['driver']}")
+        for line in _reasons(r):
+            print(f"     ・{line}")
+        if group_scores and g:
+            tot, th = group_scores.get(g, (None, None))
+            if tot is not None:
+                verdict = "追い風" if tot >= th else "追い風なし"
+                print(f"     ・マクロ: {g} {tot:+d}/閾値{th:+d} — {verdict}")
+        print()
 
-    if not brief and selected:
-        print("\n■ 上位銘柄の所見")
-        for i, r in enumerate(selected, 1):
-            print(f"  {i}. {r['code']} {nm(r['code'])}  {r['score']}点 / "
-                  f"{r['prev_close']:,.1f}円 ({r['_chg']:+.2f}%)")
-            print(f"     {r['pattern']} / RSI {r['rsi']} / 出来高 {r['volume_ratio']}倍"
-                  f"{' / パーフェクトオーダー' if r['perfect_order'] else ''}")
-            if r.get("earnings_days_ago") is not None and not pd.isna(r["earnings_days_ago"]) \
-                    and r["earnings_days_ago"] <= 5:
-                print(f"     決算: {int(r['earnings_days_ago'])}営業日前に発表 / "
-                      f"前年同期比 {fmt_e(r['earnings_op_yoy'])}% / "
-                      f"進捗率 {fmt_e(r['earnings_progress'])}% / "
-                      f"通期予想 {REVISION_LABEL.get(r['earnings_revision'], '-')}")
-            if r["earnings_next"]:
-                print("     ⚠ 翌営業日に決算発表予定")
-
-        rest = [c for c in candidates if c not in selected]
-        rest.sort(key=lambda r: r["score"], reverse=True)
-        if rest:
-            print("\n■ 次点（上位に届かなかった通過銘柄）")
-            for r in rest[:5]:
-                print(f"  {r['code']} {nm(r['code'])[:14]:<15} {r['score']:>3}点 "
-                      f"/ RSI {r['rsi']} / 出来高 {r['volume_ratio']}倍 / {r['pattern']}")
-
-    if not brief and rejected:
-        print("\n■ 除外された銘柄（見落とし確認用）")
-        agg = {}
-        for r in rejected:
-            agg.setdefault(r["reason"], []).append(r["code"])
-        for reason, codes in sorted(agg.items(), key=lambda kv: -len(kv[1])):
-            shown = " ".join(f"{c}({nm(c)[:6]})" for c in codes[:8])
-            more = f" ほか{len(codes) - 8}銘柄" if len(codes) > 8 else ""
-            print(f"  [{reason}] {len(codes)}銘柄")
-            print(f"    {shown}{more}")
-
-    if selected:
-        dist = {}
-        for r in selected:
-            dist[r["driver"]] = dist.get(r["driver"], 0) + 1
-        print("\n■ ドライバー分布: " + " / ".join(f"{k}{v}" for k, v in dist.items()))
-        if len(dist) <= 2:
-            print("  ※ 特定ドライバーに偏っています。同じ材料で動く銘柄を重複して"
-                  "持たないようご注意ください。")
+    if blocked:
+        print(f"\n■ 見送り推奨  {len(blocked)}件\n")
+        print("  テクニカルは通過しているが、運用方針に触れるため今日は入れない銘柄。\n")
+        for r in blocked:
+            print(f"  × {r['code']} {nm(r['code'])}   {r['prev_close']:,.0f}円   {r['driver']}")
+            for w in r["blockers"]:
+                print(f"     理由: {w}")
+            rsi_blocked = any("RSI" in w for w in r["blockers"])
+            ref = [x for x in _reasons(r)
+                   if not (rsi_blocked and x.startswith("RSI"))]
+            print(f"     参考: スコア{r['score']}点 / " + " / ".join(ref[-3:]))
+            print()
 
     if flagged:
-        print("\n■ 材料検知（上昇トレンド条件は満たさないが、明確な需給変化あり）")
+        print("\n■ 材料が出ている銘柄（MA25の下・順張り対象外）\n")
         for r in flagged:
-            print(f"  {r['code']} {nm(r['code'])[:14]:<15} {r['_chg']:+6.2f}%  "
-                  f"RSI {r['rsi']:>4}  出来高 {r['volume_ratio']:.2f}倍"
-                  + (f"  マクロ {mac(r)}" if group_scores else ""))
+            print(f"  ! {r['code']} {nm(r['code'])}  {r['_chg']:+.2f}%  "
+                  f"出来高{r['volume_ratio']:.2f}倍  RSI {r['rsi']}")
             print(f"     {r['catalyst_reasons']}")
-        shown = {r["code"] for r in flagged}
-        rest = [r for r in (catalysts or []) if r["code"] not in shown]
-        if rest:
-            print(f"  ほか{len(rest)}銘柄: "
-                  + " ".join(f"{r['code']}({nm(r['code'])[:6]} {r['_chg']:+.1f}%)"
-                             for r in rest[:8]))
-        print("  ※ 上昇の材料そのものは判定していません。海外決算・マクロ指標などを"
-              "個別にご確認ください。")
-        print("  ※ これらはMA25の下にあり順張りの条件を満たしません（禁止事項1）。"
-              "エントリーするなら逆張り4条件(§3-2)での判断になります。")
+        print("     ※ 順張り条件を満たしません（禁止事項1）。")
+        print("        入るなら逆張り4条件(§3-2)での判断になります。")
 
-    nxt = [c for c in candidates if c["earnings_next"]]
-    print(f"\n■ 翌営業日に決算発表（ユニバース内の通過銘柄）: {len(nxt)}銘柄")
+    nxt = [c for c in candidates if c.get("earnings_next")]
     if nxt:
+        print(f"\n\n■ 本日決算発表  {len(nxt)}件\n")
         print("  " + " / ".join(f"{c['code']} {nm(c['code'])}" for c in nxt))
-    print("  ※ 決算はスコアに加算していません。記録のみで、効果はサンプルが"
-          "貯まってから検証します。")
+        print("  → §2「決算・会合をまたぐ持ち越しはしない」。今日は新規に入らない")
+
+    if not brief:
+        print("\n\n■ 絞り込みの経過\n")
+        print(f"  ユニバース {funnel['母集団']}銘柄")
+        print(f"   → 上昇トレンド（終値>MA25 かつ MA25上向き）{funnel['上昇トレンド']}銘柄")
+        print(f"   → ルールに触れず上位{top_n}件を提示 {len(selected)}銘柄"
+              + (f"（別に見送り{len(blocked)}銘柄）" if blocked else ""))
+
+    if log_note:
+        print(f"\n  （{log_note}）")
+
+    print("\n" + bar)
+    print("※ 材料の裏付けは自動判定していません。決算・ニュースは個別にご確認ください。")
+    print("※ エントリーは場中の順張り4条件（ORB・VWAP・出来高1.5倍・連動銘柄）で")
+    print("   判断してください。銘柄ごとの詳細は entry_check.py を使ってください。")
 
 
 def main():
