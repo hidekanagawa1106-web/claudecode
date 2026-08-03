@@ -70,6 +70,13 @@ PICKS_LOG_COLUMNS = [
     "gap_pct", "day_change_pct", "outcome_recorded",
 ]
 
+# 文字列を入れる列。空のまま保存されると読み直しで float64 になるため、
+# load_log で object に固定する。
+LOG_TEXT_COLUMNS = [
+    "pick_date", "code", "track", "driver", "group", "tier", "pattern",
+    "earnings_revision", "catalyst_reasons", "outcome_date",
+]
+
 
 def get_headers() -> dict:
     api_key = os.environ.get("JQUANTS_API_KEY")
@@ -249,6 +256,14 @@ def load_log(path: str) -> pd.DataFrame:
         for col in PICKS_LOG_COLUMNS:
             if col not in df.columns:
                 df[col] = None
+        # 中身が空のまま保存された列は、読み直すと float64 と推定される。
+        # pandas 3 はそこへ文字列を代入すると TypeError を投げるようになった
+        # （2系は黙って object に昇格していた）。文字列を入れる列は object に
+        # 固定しておく。これを怠ると record_outcomes が outcome_date の代入で
+        # 落ち、成果の記録が全件失われる（2026-08-03 に発生）。
+        for col in LOG_TEXT_COLUMNS:
+            if col in df.columns and df[col].dtype != object:
+                df[col] = df[col].astype(object)
         return df
     return pd.DataFrame(columns=PICKS_LOG_COLUMNS)
 

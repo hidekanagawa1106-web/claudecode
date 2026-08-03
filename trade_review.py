@@ -48,12 +48,24 @@ TRADES_COLUMNS = [
 ]
 
 
+TRADES_TEXT_COLUMNS = [
+    "entry_date", "code", "銘柄名", "driver", "group", "exit_date", "exit_reason",
+    "朝スコア", "エントリー根拠", "ルール遵守", "違反した条件", "pick_date", "反省",
+]
+
+
 def load_trades(path: str) -> pd.DataFrame:
     if os.path.exists(path):
         df = pd.read_csv(path, dtype={"code": str})
         for c in TRADES_COLUMNS:
             if c not in df.columns:
                 df[c] = None
+        # 空のまま保存された列は読み直すと float64 になる。pandas 3 はそこへ
+        # 文字列を代入すると TypeError を投げる（picks_log.csv で実際に発生）。
+        # ここは concat で追記しているので現状は当たらないが、揃えておく。
+        for c in TRADES_TEXT_COLUMNS:
+            if c in df.columns and df[c].dtype != object:
+                df[c] = df[c].astype(object)
         return df
     return pd.DataFrame(columns=TRADES_COLUMNS)
 
