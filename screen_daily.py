@@ -65,6 +65,8 @@ PICKS_LOG_COLUMNS = [
     # 商社以外の5グループは閾値・感応度が未検証のため、点数に混ぜずに記録だけ残す。
     # サンプルが貯まれば「マクロが良い日の候補は成績が良かったか」を後から測れる。
     "macro_score", "macro_threshold",
+    # トレンドの形（記録のみ）
+    "ma25_slope", "ma25_gap", "unit_cost",
     # 成果
     "outcome_date", "next_open", "next_high", "next_low", "next_close",
     "gap_pct", "day_change_pct", "outcome_recorded",
@@ -370,16 +372,24 @@ def screen_universe(universe_df: pd.DataFrame, headers: dict, schedule: set):
             ma25_now, ma25_prev = ma25s.iloc[-1], ma25s.iloc[-2]
             ma75 = df["close"].rolling(75).mean().iloc[-1] if len(df) >= 75 else None
 
+            # MA25の傾きは20日前と比べる。前日比1日分だと、下降トレンド途中の
+            # 1日の戻りでも通ってしまい「数週間のトレンドの向き」にならない。
+            # 74銘柄×170営業日で比較したところ、通過率47.7%→37.0%に絞れて
+            # 5日リターンは +1.06%→+1.18% とわずかに改善した（差は誤差の範囲）。
+            ma25_ref = ma25s.iloc[-21] if len(ma25s) >= 21 else ma25_prev
             cond_ma25_break = latest["close"] > ma25_now
-            cond_ma25_trend = ma25_now >= ma25_prev
+            cond_ma25_trend = bool(pd.notna(ma25_ref) and ma25_now > ma25_ref)
             passes_trend = bool(cond_ma25_break and cond_ma25_trend)
+            ma25_slope = ((ma25_now / ma25_ref - 1) * 100
+                          if pd.notna(ma25_ref) and ma25_ref else None)
+            ma25_gap = (latest["close"] / ma25_now - 1) * 100
 
             # 順張りのハードフィルタは上昇トレンドのみ。ただし落ちた銘柄も
             # セクター一斉高の判定に必要なため、指標は全銘柄で計算する。
             if passes_trend:
                 funnel["上昇トレンド"] += 1
             else:
-                why = "終値がMA25の下" if not cond_ma25_break else "MA25が下向き"
+                why = "終値がMA25の下" if not cond_ma25_break else "MA25が20日前より下"
                 rejected.append({"code": code, "driver": urow.get("driver", ""),
                                  "reason": why})
 
@@ -416,6 +426,9 @@ def screen_universe(universe_df: pd.DataFrame, headers: dict, schedule: set):
                 "score_volume": s_vol, "score_candle": s_candle,
                 "volume_ratio": round(vol_ratio, 2),
                 "perfect_order": perfect,
+                "ma25_slope": None if ma25_slope is None else round(ma25_slope, 2),
+                "ma25_gap": round(ma25_gap, 2),
+                "unit_cost": int(latest["close"] * 100),
                 "earnings_next": code in schedule,
                 "_chg": round((latest["close"] / df["close"].iloc[-2] - 1) * 100, 2),
                 **sig,
@@ -529,29 +542,37 @@ def _reasons(r: dict) -> list:
         out.append("直近10営業日以内の決算発表なし（新しい材料は出ていない）")
     if r.get("pattern") and r["pattern"] != "-":
         out.append(f"ローソク足は{r['pattern']}")
+    sl, gap = r.get("ma25_slope"), r.get("ma25_gap")
+    if sl is not None and gap is not None:
+        strength = "しっかり上向き" if sl >= 3 else ("緩やかに上向き" if sl >= 1 else "ほぼ横ばい")
+        out.append(f"MA25は20日前比 {sl:+.1f}%（{strength}）。終値はMA25を {gap:+.1f}%")
     if r.get("perfect_order"):
-        out.append("MA5 > MA25 > MA75 のパーフェクトオーダー")
-    else:
-        out.append("MA25の上にあるがパーフェクトオーダーではない（トレンドは弱め）")
-    vr = r.get("volume_ratio")
-    if vr:
-        out.append(f"出来高は平均の{vr:.2f}倍")
+        out.append("MA5 > MA25 > MA75 の並び")
+    return out
+
+
+def _entry_notes(r: dict) -> list:
+    """場中のエントリー判定で見る材料。朝の選定には使っていない。
+
+    RSI と出来高は 74銘柄×170営業日で順位付けへの寄与を測ったところ
+    r=0.015(p=0.23) / r=0.021(p=0.09) で、通過銘柄の並べ替えには効かなかった。
+    エントリー時に見る値として表示だけ残す。
+    """
+    out = []
     rsi = r.get("rsi")
     if rsi is not None:
-        if rsi >= 65:
-            note = "やや過熱。飛びつきに注意"
-        elif rsi >= 50:
-            note = "過熱していない"
-        else:
-            note = "上昇の勢いは強くない"
-        out.append(f"RSI {rsi} — {note}")
+        note = "過熱ぎみ" if rsi >= 65 else ("中立" if rsi >= 50 else "勢いは弱い")
+        out.append(f"RSI {rsi}（{note}）")
+    vr = r.get("volume_ratio")
+    if vr:
+        out.append(f"前日の出来高 平均比{vr:.2f}倍")
     return out
 
 
 def print_report(selected, candidates, funnel, rejected, names, pick_date,
                  top_n, brief=False, flagged=None, catalysts=None,
                  group_scores=None, blocked=None, macro_notes=None,
-                 today=None, log_note=None):
+                 today=None, log_note=None, news=None):
     """銘柄を主役にしたウォッチリストを出す。
 
     以前はパイプラインの構造（第1部/第2部/第3部）をそのまま並べていたため、
@@ -577,15 +598,40 @@ def print_report(selected, candidates, funnel, rejected, names, pick_date,
     for i, r in enumerate(selected, 1):
         g = r.get("group")
         g = "" if g is None or pd.isna(g) else str(g).strip()
-        head = f"  {i}. {r['code']} {nm(r['code'])}"
-        print(f"{head}   {r['prev_close']:,.0f}円   {r['driver']}")
+        unit = r.get("unit_cost") or int(r["prev_close"] * 100)
+        print(f"  {i}. {r['code']} {nm(r['code'])}   {r['prev_close']:,.0f}円"
+              f"   1単元 {unit / 10000:,.1f}万円   {r['driver']}")
+
+        print("     [なぜ出たか]")
         for line in _reasons(r):
-            print(f"     ・{line}")
+            print(f"       ・{line}")
+
+        print("     [マクロ]")
         if group_scores and g:
             tot, th = group_scores.get(g, (None, None))
             if tot is not None:
-                verdict = "追い風" if tot >= th else "追い風なし"
-                print(f"     ・マクロ: {g} {tot:+d}/閾値{th:+d} — {verdict}")
+                verdict = ("追い風が出ている" if tot >= th else
+                           "追い風なし（閾値未達）")
+                print(f"       ・{g} 朝スコア {tot:+d}/閾値{th:+d} — {verdict}")
+            else:
+                print(f"       ・{g}（朝スコア未定義）")
+        else:
+            print("       ・連動グループなし（単独銘柄）。セクター単位の追い風・逆風は判定対象外")
+
+        arts = (news or {}).get(r["code"])
+        if arts is None:
+            pass
+        elif arts:
+            print("     [ニュース] 直近36時間・日経/ロイター/Bloomberg等")
+            for a in arts:
+                print(f"       ・[{a['日時']}] {a['見出し'][:52]} ({a['発信元']})")
+            print("       ※ 内容の良し悪しは判定していません。読んでご判断ください")
+        else:
+            print("     [ニュース] 該当なし（直近36時間・許可ソース内）")
+
+        en = _entry_notes(r)
+        if en:
+            print("     [エントリー時に見る] " + " / ".join(en))
         print()
 
     if blocked:

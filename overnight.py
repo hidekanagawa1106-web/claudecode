@@ -117,8 +117,27 @@ def fetch_afterhours(ticker: str):
 GNEWS = "https://news.google.com/rss/search?q={}&hl=ja&gl=JP&ceid=JP:ja"
 
 
+def looks_like_other_company(title: str, name: str) -> bool:
+    """社名の部分一致で別会社を拾っていないかを見る。
+
+    「日本電気」で検索すると「日本電気硝子」（5214、別会社）が引っかかる。
+    社名の直後が漢字・カタカナなら、より長い社名の一部とみなして落とす。
+    「トヨタ自動車が」のように助詞が続く場合は残る。
+
+    完全ではない。子会社（トヨタ自動車東日本など）も落ちるが、
+    親会社の株価材料としては別物なので、この用途では落として構わない。
+    """
+    import re
+    for m in re.finditer(re.escape(name), title):
+        nxt = title[m.end():m.end() + 1]
+        if nxt and re.match(r"[一-龥ァ-ヴー]", nxt) and nxt != "株":
+            continue          # 別会社の可能性 → この出現は数えない
+        return False          # 社名そのものとして出ている
+    return True               # すべての出現が別会社らしい
+
+
 def fetch_news(keyword: str, allow: list, hours: int, limit: int,
-               asof: str = None) -> list:
+               asof: str = None, company: str = None) -> list:
     """Google News のキーワード検索から、許可した発信元の見出しだけを拾う。
 
     見出しと配信元・配信時刻を集めるところまでで、内容の良し悪しは判定しない。
@@ -157,6 +176,8 @@ def fetch_news(keyword: str, allow: list, hours: int, limit: int,
             if age > hours or age < -24:
                 continue
         title = (it.findtext("title") or "").split(" - ")[0].strip()
+        if company and looks_like_other_company(title, company):
+            continue
         out.append({"見出し": title, "発信元": src,
                     "日時": when.strftime("%m-%d %H:%M") if when else "-"})
         if len(out) >= limit:

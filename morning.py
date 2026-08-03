@@ -156,12 +156,24 @@ def main():
             log_df = pd.concat([log_df, pd.DataFrame([row])], ignore_index=True)
         log_df.to_csv(args.log, index=False, encoding="utf-8-sig")
 
+    # 候補銘柄のニュースを取る。採点はしない（見出しの語数え上げは
+    # 6,569件で検証して翌日リターンを説明しなかった。最大 r=0.16, p=0.22）。
+    # 「材料の裏付けは個別に確認してください」の取得だけを自動化する。
+    news = {}
+    if not args.skip_overnight:
+        nc = (conf.get("共通") or {}).get("ニュース") or {}
+        for r in selected:
+            kw = names.get(r["code"]) or r["code"]
+            news[r["code"]] = ov.fetch_news(kw, nc.get("許可ソース", []),
+                                            nc.get("収集時間", 36), 3, None,
+                                            company=kw)
+
     sd.print_report(selected, cands, funnel, rejected, names, pick_date or "-",
                     args.top_n, brief=(args.format == "brief"),
                     flagged=catalysts[:5], catalysts=catalysts,
                     group_scores=group_scores, blocked=blocked,
                     macro_notes=macro_notes, today=f"{today}  東証: {day_label}",
-                    log_note=log_note)
+                    log_note=log_note, news=news)
 
 if __name__ == "__main__":
     main()
