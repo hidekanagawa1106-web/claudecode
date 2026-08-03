@@ -4,29 +4,20 @@
 
 ## 状態
 
-**登録済み。ただし初回実行(2026-08-03 8:00 JST)は失敗した。**
+**稼働中。** 2026-08-03 にデフォルトブランチを `main` へ切り替えたことで、
+起動時の障害はすべて解消した。
 
-原因はコードではなく Routine の設定。起動したセッションにリポジトリが1つも
-紐付いておらず、`git checkout` の前段で止まった。
+これまでの失敗と原因（すべてブランチ／セッション構造の問題で、コードではなかった）:
 
-```
-/home/user           空。gitリポジトリではない
-GitHub API           "sessions are bound to their configured repositories"（設定済みリポジトリなし）
-git認証プロキシ        認証対象がなく clone/ls-remote が全滅
-```
-
-**対応: Routine の設定で対象リポジトリを指定すること。**
-
-| 項目 | 値 |
+| 症状 | 原因 |
 |---|---|
-| リポジトリ | `hidekanagawa1106-web/claudecode` |
-| ブランチ | `claude/japan-swing-trade-watchlist-bk7bpd` |
+| リポジトリが無い | Routine設定でリポジトリ未指定 |
+| ModuleNotFoundError: pandas | 旧デフォルトブランチに `.claude/hooks/` が無くフックが走らなかった |
+| 営業日なのに配信されない | `pick_date` の一致を休場日の根拠にしていた（東証カレンダー参照に修正） |
+| outcome記録が全件失敗 | pandas 3 の dtype 厳格化（`load_log` で object に固定して解消） |
 
-保険として、プロンプト側にも `add_repo` での自力復旧手順を入れてある
-（`docs/routine-prompt.txt` の手順1）。設定が正しければこの経路は通らない。
-
-`CronCreate` は代用にならない。セッション限定で、セッション終了とともに消える（かつ7日で失効）。
-コンテナは非永続なので、日々の定期実行には Routine が必要。
+デフォルトが `main` になったので、プロンプトから
+ブランチ切り替えと `pip install` の手順を外した。
 
 ## 設定値
 
@@ -58,17 +49,8 @@ Routine の cron は **UTC で評価される**。JST は UTC+9 なので 8:00 J
 
 **1. ブランチ**
 
-このリポジトリにデフォルトブランチとして設定されているのは
-`claude/daily-stock-scoring-schedule-g638sv` で、一連の実装は入っていない。
-
-```
-origin/HEAD → claude/daily-stock-scoring-schedule-g638sv   ← デフォルト
-              claude/japan-swing-trade-watchlist-bk7bpd    ← 実装はこちら
-```
-
-新しいセッションはデフォルトブランチをクローンするので、プロンプト内の `git checkout` は必須。
-`claude/japan-swing-trade-watchlist-bk7bpd` をデフォルトに変更するか main に統合すれば、
-この手順は不要になる。
+デフォルトは `main`。新しいセッションはここを複製し、`.claude/` からスキルと
+フックを読み込む。実装をここに載せておかないと、セッションは何も持たずに始まる。
 
 **2. picks_log.csv の push**
 
