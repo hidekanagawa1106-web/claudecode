@@ -75,8 +75,14 @@ def intraday(code: str) -> dict:
         tp = (d["h"] + d["l"] + d["c"]) / 3
         vwap = (tp * d["v"]).cumsum() / d["v"].cumsum()
         last = d.iloc[-1]
+        # 板寄せ（注文一括約定）のバーは構造的に突出する。前場寄り・後場寄り・
+        # 大引けの3箇所で、毎日必ず出る。これを平均に入れると母数が膨らみ、
+        # 場中の出来高倍率が実態より小さく出る。§3-1 条件3の判定がここに
+        # 乗っているため、除外して平均を取る。
+        auction = (hm <= "09:05") | ((hm >= "12:30") & (hm <= "12:35")) | (hm >= "14:55")
+        normal = d[~auction]
         recent = d["v"].tail(5).sum() / 5
-        avg = d["v"].mean()
+        avg = normal["v"].mean() if len(normal) else d["v"].mean()
         return {
             "日付": d["t"].iloc[0].strftime("%Y-%m-%d"),
             "最初のバー": d["t"].iloc[0].strftime("%H:%M"),
