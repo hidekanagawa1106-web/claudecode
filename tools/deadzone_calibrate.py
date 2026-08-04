@@ -12,6 +12,9 @@ Hideさんが見た症状は日をまたぐ変化ではなく、数分違いの2
 なので測るべきは「指標がわずかに動いたとき、グループの判定が変わる確率」。
 各指標に 0.05σ（1日の値動きの5%ぶん）の摂動を与えて、
 閾値到達の可否がひっくり返る割合を数える。
+
+あわせて発火率（朝スコアが閾値以上になる日の割合）も出す。不感帯を広げると
+安定はするが発火しにくくなるので、両方を並べないと選べない。
 """
 import os
 import sys
@@ -24,10 +27,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import overnight as ov
 
 CONF = yaml.safe_load(open("driver_map.yaml", encoding="utf-8"))
-PCTS = [10, 20, 30]
+PCTS = [10, 15, 20, 30]
 JITTER = 0.05      # 摂動の大きさ（各指標の日次σに対する比）
-TRIALS = 40
+TRIALS = 200
+# 摂動は案ごとに引き直さず、全案で同じ乱数を使う（対応のある比較にする）。
+# 引き直すと案の差より試行のばらつきのほうが大きくなり、40試行では
+# 同じ設定でも 半導体が 1.6% と 1.2% のように動いてしまう。
 rng = np.random.default_rng(0)
+NOISE = {}
+
+
+def noise_for(name, s):
+    """項目ごとに TRIALS 本の摂動を1度だけ作って使い回す。"""
+    if name not in NOISE:
+        NOISE[name] = rng.normal(0, JITTER * s.std(), (TRIALS, len(s)))
+    return NOISE[name]
 
 
 def scored_items():
@@ -81,13 +95,12 @@ def main():
                 p = np.sign(s.where(s.abs() >= band, 0.0)) * i.get("感応度", 1)
                 base = p if base is None else base.add(p, fill_value=0)
             base_fire = base >= th
-            for _ in range(TRIALS):
+            for k in range(TRIALS):
                 pert = None
                 for i in live:
                     s = avg_of[i["名前"]]
                     band = dz[i["名前"]][mode] if mode else 0.0
-                    eps = rng.normal(0, JITTER * s.std(), len(s))
-                    s2 = s + eps
+                    s2 = s + noise_for(i["名前"], s)[k]
                     p = np.sign(s2.where(s2.abs() >= band, 0.0)) * i.get("感応度", 1)
                     pert = p if pert is None else pert.add(p, fill_value=0)
                 flips.append(((pert >= th) != base_fire).mean())
@@ -117,12 +130,12 @@ def main():
                 p = np.sign(s.where(s.abs() >= band, 0.0)) * i.get("感応度", 1)
                 base = p if base is None else base.add(p, fill_value=0)
             ch, mag = [], []
-            for _ in range(TRIALS):
+            for k in range(TRIALS):
                 pert = None
                 for i in live:
                     s = avg_of[i["名前"]]
                     band = dz[i["名前"]][mode] if mode else 0.0
-                    s2 = s + rng.normal(0, JITTER * s.std(), len(s))
+                    s2 = s + noise_for(i["名前"], s)[k]
                     p = np.sign(s2.where(s2.abs() >= band, 0.0)) * i.get("感応度", 1)
                     pert = p if pert is None else pert.add(p, fill_value=0)
                 d = (pert - base).abs()
@@ -130,6 +143,36 @@ def main():
                 mag.append(d[d > 0].mean() if (d > 0).any() else 0)
             row.append(f"{np.mean(ch)*100:>6.0f}% / {np.mean(mag):.2f}点")
         print(f"{g:<14}" + "".join(f"{c:>20}" for c in row))
+
+    # 発火率。不感帯を広げるほど下がるので、安定性とセットで見ないと選べない。
+    # トピック項目は過去再現できないため 0点固定。絶対値は実運用より低く出る。
+    print("\n■ 発火率（朝スコアが閾値以上になる日の割合。トピックは0点固定）\n")
+    print(f"{'グループ':<14}{'閾値':>5}" + "".join(
+        f"{lab:>14}" for lab in ["不感帯なし"] + [f"{p}%点" for p in PCTS]))
+    for (g, th), its in groups.items():
+        row = []
+        for mode in [None] + PCTS:
+            score = None
+            for i in its:
+                if not i.get("ticker") or i["名前"] not in avg_of:
+                    continue
+                if i.get("採点") is False:
+                    continue
+                s = avg_of[i["名前"]]
+                band = dz[i["名前"]][mode] if mode else 0.0
+                p = np.sign(s.where(s.abs() >= band, 0.0)) * i.get("感応度", 1)
+                score = p if score is None else score.add(p, fill_value=0)
+            row.append("-" if score is None else f"{(score >= th).mean() * 100:.0f}%")
+        print(f"{g:<14}{th:>+5}" + "".join(f"{c:>14}" for c in row))
+
+    print("\n■ 各案の不感帯の実数値\n")
+    print(f"{'項目':<26}" + "".join(f"{f'{p}%点':>10}" for p in PCTS)
+          + f"{'急変閾値':>10}")
+    for name in avg_of:
+        th = next((i.get("急変閾値") for _, _, i in scored_items()
+                   if i["名前"] == name), None)
+        print(f"{name[:24]:<26}" + "".join(f"{dz[name][p]:>9.2f}%" for p in PCTS)
+              + f"{th if th else '-':>10}")
 
 
 if __name__ == "__main__":
