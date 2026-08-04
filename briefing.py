@@ -322,8 +322,10 @@ def print_groups(macro):
                 what = "自動取得なし（手動確認）"
             sens = i.get("感応度")
             tail = ""
+            if i.get("不感帯内"):
+                tail = f"  ※不感帯±{i['不感帯']}%の内側。ノイズとみなして0点"
             if sens == -1:
-                tail = "  ※上昇はこのグループには逆風"
+                tail += "  ※上昇はこのグループには逆風"
             if i.get("採点対象") is False:
                 tail += "  ※採点対象外（表示のみ）"
             mark = "＋" if i["点"] > 0 else ("－" if i["点"] < 0 else "・")

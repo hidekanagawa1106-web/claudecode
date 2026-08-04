@@ -223,7 +223,8 @@ def evaluate_item(item: dict, asof: str, news_conf: dict = None, topics: dict = 
     tickers = item.get("ticker") or []
     out = {"名前": item["名前"], "自動": bool(tickers), "変化率": None,
            "点": 0, "急変": False, "基準日": None, "内訳": [], "見出し": [],
-           "方向": None, "根拠": [], "語数": None, "時間外": []}
+           "方向": None, "根拠": [], "語数": None, "時間外": [],
+           "不感帯": None, "不感帯内": False}
     if not tickers:
         # トピック参照つきの項目は、事象の方向 × このグループの感応度 で採点する
         tname = item.get("トピック")
@@ -269,7 +270,17 @@ def evaluate_item(item: dict, asof: str, news_conf: dict = None, topics: dict = 
     # (自動車にとっての米10年債利回りなど)。既定は +1。
     sens = item.get("感応度", 1)
     out["感応度"] = sens
-    out["点"] = (1 if avg > 0 else (-1 if avg < 0 else 0)) * sens
+    # 不感帯。この幅より小さい変化はノイズとみなして0点にする。
+    # 入れる前は「プラスなら+1」だったため、ドル円 +0.01% が満点扱いになり、
+    # 数分違いの2回の実行で半導体・AI関連が +3/+3 から +1/+3 に変わった
+    # （2026-08-04 実測）。閾値到達の可否が為替の0.02ポイントで決まっていた。
+    band = item.get("不感帯")
+    out["不感帯"] = band
+    out["不感帯内"] = bool(band and abs(avg) < band)
+    if out["不感帯内"]:
+        out["点"] = 0
+    else:
+        out["点"] = (1 if avg > 0 else (-1 if avg < 0 else 0)) * sens
     # 採点: false の項目は、変化率は表示するが合計には入れない。
     # 検証で効果が確認できていない指標を、消さずに材料として残すために使う。
     out["採点対象"] = item.get("採点", True)
