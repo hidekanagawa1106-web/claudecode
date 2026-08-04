@@ -39,7 +39,7 @@ import pandas as pd
 import screen_daily as sd
 
 TRADES_COLUMNS = [
-    "entry_date", "code", "銘柄名", "driver", "group",
+    "entry_date", "entry_time", "code", "銘柄名", "driver", "group",
     "entry_price", "shares", "stop_price", "target_price",
     "exit_date", "exit_price", "exit_reason",
     "pnl_pct", "pnl_yen", "保有営業日数",
@@ -49,7 +49,7 @@ TRADES_COLUMNS = [
 
 
 TRADES_TEXT_COLUMNS = [
-    "entry_date", "code", "銘柄名", "driver", "group", "exit_date", "exit_reason",
+    "entry_date", "entry_time", "code", "銘柄名", "driver", "group", "exit_date", "exit_reason",
     "朝スコア", "エントリー根拠", "ルール遵守", "違反した条件", "pick_date", "反省",
 ]
 
@@ -173,6 +173,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--code")
     ap.add_argument("--entry-date")
+    ap.add_argument("--entry-time", default="",
+                    help="約定時刻 HH:MM。同日に同じ銘柄へ入り直した取引を区別する")
     ap.add_argument("--entry-price", type=float)
     ap.add_argument("--exit-date")
     ap.add_argument("--exit-price", type=float)
@@ -264,7 +266,7 @@ def main():
 
     if args.save:
         rec = {
-            "entry_date": args.entry_date, "code": args.code,
+            "entry_date": args.entry_date, "entry_time": args.entry_time, "code": args.code,
             "銘柄名": names.get(args.code, ""), "driver": driver, "group": group,
             "entry_price": args.entry_price, "shares": args.shares,
             "stop_price": args.stop, "target_price": args.target,
@@ -276,10 +278,16 @@ def main():
             "pick_date": hit["pick_date"] if hit is not None else "",
             "反省": args.memo,
         }
+        # 重複判定は約定時刻まで見る。デイトレで同じ銘柄へ同日に入り直すと
+        # 日付＋コードだけでは2件目が落ちるため。--entry-time を省いた
+        # スイングの記録は時刻が空同士で一致し、従来どおり1日1件に絞られる。
         dup = ((trades["entry_date"].astype(str) == args.entry_date)
-               & (trades["code"].astype(str) == args.code)).any() if len(trades) else False
+               & (trades["code"].astype(str) == args.code)
+               & (trades["entry_time"].fillna("").astype(str) == args.entry_time)
+               ).any() if len(trades) else False
         if dup:
-            print(f"\n  ※ {args.entry_date} の {args.code} は既に記録済みです。追記しませんでした。")
+            label = f"{args.entry_date} {args.entry_time}".strip()
+            print(f"\n  ※ {label} の {args.code} は既に記録済みです。追記しませんでした。")
         else:
             trades = pd.concat([trades, pd.DataFrame([rec])], ignore_index=True)
             trades.to_csv(args.trades, index=False, encoding="utf-8-sig")
