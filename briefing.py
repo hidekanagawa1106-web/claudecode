@@ -55,6 +55,7 @@ RSI・出来高倍率・VWAP・ボリンジャーは、実際に買う瞬間に�
 import argparse
 import datetime as dt
 import sys
+import zoneinfo
 
 import pandas as pd
 import yaml
@@ -62,6 +63,20 @@ import yaml
 import earnings
 import overnight as ov
 import screen_daily as sd
+
+JST = zoneinfo.ZoneInfo("Asia/Tokyo")
+
+
+def jst_today() -> str:
+    """日本時間での今日の日付。
+
+    実行コンテナは UTC で動いている。8:00 JST は前日の 23:00 UTC なので、
+    dt.date.today() を使うと**前日**が返る。東証カレンダーの照会も
+    見出しの日付もそれで1日ずれる。祝日をまたぐと、営業日なのに
+    「休場」と判定して配信を落とす（2026-08-03 に別の原因で一度起きている）。
+    """
+    return dt.datetime.now(JST).date().isoformat()
+
 
 STANCE_ORDER = ["順張りの土俵", "押し目", "トレンド下向き", "見送り"]
 
@@ -122,6 +137,7 @@ def evaluate(code: str, urow: dict, headers: dict, schedule: set) -> dict:
     s_vol = sd.score_volume(vol_ratio)
     s_candle, pattern = sd.score_candle(latest)
     sig = earnings.fetch_earnings_signals(code, headers, df["date"].tolist())
+    reaction = earnings_reaction(df, sig.get("earnings_disc_date"))
 
     r = {
         "pick_date": latest["date"],
@@ -164,6 +180,7 @@ def evaluate(code: str, urow: dict, headers: dict, schedule: set) -> dict:
         "score_volume": s_vol, "score_candle": s_candle,
         "quant_all_pass": bool(above_ma25 and ma25_up and vol_ratio >= 1.2 and rsi < 70),
         "earnings_next": code in schedule,
+        "reaction": reaction,
         **sig,
     }
     r["blockers"] = sd.check_blockers(r)
@@ -176,6 +193,42 @@ def evaluate(code: str, urow: dict, headers: dict, schedule: set) -> dict:
     else:
         r["stance"] = "トレンド下向き"
     return r
+
+
+def earnings_reaction(df: pd.DataFrame, disc_date) -> list:
+    """決算発表の前後で株価と出来高がどう動いたかを日ごとに返す。
+
+    発表が引け後か寄り前かはAPIから判別できない。引け後発表なら反応は翌営業日に
+    出るので、発表日とその後を並べて、出来高が跳ねた日を見てもらう形にする。
+
+    ここでは値動きを並べるだけで、良い決算/悪い決算の判定はしない。
+    見出しの語数え上げが翌日リターンを説明しなかった検証（6,569件、最大 r=0.16）
+    と同じ理由で、内容の評価は読み手に委ねる。
+    """
+    if not disc_date:
+        return []
+    d = str(disc_date)[:10]
+    idx = df.index[df["date"] >= d]
+    if not len(idx):
+        return []
+    start = df.index.get_loc(idx[0])
+    avg20 = df["volume"].iloc[max(0, start - 21):start - 1].mean()
+    out = []
+    for i in range(start, min(start + 4, len(df))):
+        if i == 0:
+            continue
+        row, prev = df.iloc[i], df.iloc[i - 1]
+        out.append({
+            "date": row["date"],
+            "label": "発表日" if i == start else f"翌{i - start}営業日",
+            "gap": round(row["open"] / prev["close"] * 100 - 100, 2),
+            "chg": round(row["close"] / prev["close"] * 100 - 100, 2),
+            "vol": round(row["volume"] / avg20, 2) if avg20 else None,
+        })
+    if out:
+        first = df.iloc[start - 1]["close"] if start else df.iloc[start]["close"]
+        out[-1]["cum"] = round(df["close"].iloc[-1] / first * 100 - 100, 2)
+    return out
 
 
 def describe_candle(row, vol_ratio: float, pattern: str) -> str:
@@ -244,24 +297,80 @@ def describe_trend(r: dict) -> str:
     return line + (f"\n         直近10日は{tail}" if tail else "")
 
 
-def earnings_note(r: dict) -> str:
+def earnings_lines(r: dict, news: list) -> list:
+    """決算まわりを、控えている場合と出た後で書き分ける。
+
+    控えている場合   いつか / §2 イベントフィルタに触れるか
+    出た後           中身 / 株価と出来高の反応 / それに触れた見出し
+
+    どちらも判定はしない。§2 の該当は運用方針の条文をそのまま当てているだけ。
+    """
+    out = []
     d = r.get("earnings_days_ago")
+    fresh = d is not None and not pd.isna(d) and int(d) <= 9
+
     if r.get("earnings_next"):
-        return "本日が決算発表日"
-    if d is None or pd.isna(d) or int(d) > 9:
-        return "直近10営業日以内の決算発表なし"
+        out.append("⚠ 本日が決算発表日 — §2 イベントフィルタ（当日・翌日は半分以下か見送り）")
+    else:
+        nd, est = r.get("earnings_next_days"), r.get("earnings_next_est")
+        if nd is not None and est:
+            if nd < 0:
+                out.append(f"⚠ 次回決算は {est} 前後と推定。推定日を過ぎており、"
+                           "いつ出てもおかしくありません")
+            elif nd <= 5:
+                out.append(f"⚠ 次回決算は {est} 前後と推定（あと{nd}日）。"
+                           "§2 イベントフィルタが近づいています")
+            elif nd <= 14:
+                out.append(f"次回決算は {est} 前後と推定（あと{nd}日）")
+            else:
+                out.append(f"次回決算は {est} 前後と推定（あと{nd}日）。当面は影響なし")
+            out.append("  ※ 前年同期の開示日から推定した目安です。確定日ではありません")
+
+    if not fresh:
+        if not r.get("earnings_next"):
+            out.insert(0, "直近10営業日以内の決算発表なし")
+        return out
+
     d = int(d)
     when = "前営業日" if d == 0 else f"{d + 1}営業日前"
-    line = f"決算が{when}に発表"
+    body = f"決算が{when}（{r.get('earnings_disc_date')}）に発表"
     yoy = r.get("earnings_op_yoy")
     if yoy is not None and not pd.isna(yoy):
-        line += f"。営業利益 前年同期比 {yoy:+.1f}%"
-    if sd.REVISION_LABEL.get(r.get("earnings_revision")) == "上方修正":
-        line += "。通期予想を上方修正"
+        body += f" / 営業利益 前年同期比 {yoy:+.1f}%"
     prog = r.get("earnings_progress")
     if prog is not None and not pd.isna(prog):
-        line += f"。進捗率 {prog:.1f}%"
-    return line
+        body += f" / 通期進捗率 {prog:.1f}%"
+    rev = sd.REVISION_LABEL.get(r.get("earnings_revision"))
+    if rev:
+        body += f" / 通期予想は{rev}"
+    out.insert(0, body)
+
+    react = r.get("reaction") or []
+    if react:
+        out.append("株価の反応:")
+        for x in react:
+            v = f" 出来高{x['vol']:.1f}倍" if x.get("vol") else ""
+            out.append(f"  {x['label']} {x['date']}  始値ギャップ{x['gap']:+.2f}% / "
+                       f"終値{x['chg']:+.2f}%{v}")
+        cum = react[-1].get("cum")
+        if cum is not None:
+            out.append(f"  発表前の終値からの累計 {cum:+.2f}%")
+        big = max(react, key=lambda x: x.get("vol") or 0)
+        if big.get("vol") and big["vol"] >= 1.5:
+            out.append(f"  → 出来高が跳ねたのは{big['label']}。"
+                       "引け後発表ならここが実質の反応日です")
+
+    hit = [a for a in (news or []) if any(
+        w in a["見出し"] for w in ("決算", "純利益", "営業利益", "最高益",
+                                   "上方修正", "下方修正", "増益", "減益",
+                                   "受注", "業績", "四半期"))]
+    if hit:
+        out.append("決算に触れた見出し:")
+        for a in hit[:4]:
+            out.append(f"  [{a['日時']}] {a['見出し'][:56]}（{a['発信元']}）")
+        out.append("  ※ 反応の良し悪しは判定していません。見出しの言い回しと"
+                   "上の値動きを合わせて読んでください")
+    return out
 
 
 def print_markets(macro):
@@ -410,55 +519,69 @@ def print_briefing(rows, names, macro, news, today, log_note):
             print(f"  {line}")
         print()
         for r in group:
-            print(f"  {r['code']} {nm(r['code'])}   {r['prev_close']:,.0f}円"
-                  f"   MA25から {r['ma25_gap']:+.1f}%"
-                  f"   1単元 {r['unit_cost'] / 10000:,.1f}万円   {r['driver']}")
+            # 1要素1行の箇条書きにする。要素を「｜」で連ねると、読み手が
+            # どこで切れるかを探しながら読むことになる。
+            print(f"  ── {r['code']} {nm(r['code'])} " + "─" * 6)
+            print(f"     終値 {r['prev_close']:,.0f}円（前日比 {r['chg']:+.2f}%）")
+            print(f"     1単元 {r['unit_cost'] / 10000:,.1f}万円 / MA25から "
+                  f"{r['ma25_gap']:+.1f}% / {r['driver']}")
             if r["blockers"]:
+                print()
                 for w in r["blockers"]:
-                    print(f"     見送り理由: {w}")
+                    print(f"     ⚠ 見送り理由: {w}")
 
+            arts = (news or {}).get(r["code"])
+            print("\n     ● 決算")
+            for line in earnings_lines(r, arts):
+                print(f"       {line}")
+
+            print("\n     ● マクロ")
             # グループ名の有無と朝スコアの有無は別。--skip-overnight のときに
             # 「連動グループなし」と出してしまうと事実と食い違う。
             g = r["group"]
             if not g:
                 # 単独銘柄はセクターの朝スコアを持たないが、それだけだと
                 # マクロ欄が空になる。全体の地合いくらいは出しておく。
-                print("     [マクロ] 連動グループなし（単独銘柄）。"
+                print("       連動グループなし（単独銘柄）。"
                       "セクター単位の追い風・逆風は判定対象外です")
                 mkt = (macro or {}).get("market")
                 if mkt:
-                    print("              全体の地合い: " + " / ".join(
+                    print("       全体の地合い: " + " / ".join(
                         f"{n} {v:+.2f}%" for n, v in mkt))
             else:
                 tot, th = group_scores.get(g, (None, None))
                 if tot is None:
-                    print(f"     [マクロ] {g}（朝スコア未取得）")
+                    print(f"       {g}（朝スコア未取得）")
                 else:
                     verdict = "追い風が出ている" if tot >= th else "追い風なし（閾値未達）"
-                    print(f"     [マクロ] {g} 朝スコア {tot:+d}/閾値{th:+d} — {verdict}")
+                    print(f"       {g} 朝スコア {tot:+d} / 閾値 {th:+d} — {verdict}")
                     for i in (macro or {}).get("groups_items", {}).get(g, []):
                         if i["点"] != 0 or i["急変"]:
                             v = (f"{i['変化率']:+.2f}%" if i["内訳"] else
                                  ("強まる方向" if i.get("方向") == 1 else
                                   "弱まる方向" if i.get("方向") == -1 else "中立"))
                             star = " ★急変" if i["急変"] else ""
-                            print(f"              {i['名前']} {v} → {i['点']:+d}点{star}")
+                            print(f"         {i['名前']} {v} → {i['点']:+d}点{star}")
 
-            arts = (news or {}).get(r["code"])
+            print("\n     ● ニュース")
             if arts:
-                print("     [ニュース] 直近36時間・日経/ロイター/Bloomberg等")
                 for a in arts:
-                    print(f"       ・[{a['日時']}] {a['見出し'][:58]}")
-                    print(f"            {a['発信元']}")
+                    print(f"       [{a['日時']}] {a['見出し'][:58]}")
+                    print(f"                 {a['発信元']}")
                 print("       ※ 内容の良し悪しは判定していません。読んでご判断ください")
             elif arts is not None:
-                print("     [ニュース] 該当なし（直近36時間・許可ソース内）")
+                print("       該当なし（直近36時間・許可ソース内）")
+            else:
+                print("       未取得（--no-news / --skip-overnight で実行しています）")
 
-            print(f"     [決算]   {earnings_note(r)}")
-            print(f"     [トレンド] {describe_trend(r)}")
-            print(f"     [前日の足] {r['candle']}")
+            print("\n     ● トレンドと直近の値動き")
+            for line in describe_trend(r).split("\n"):
+                print(f"       {line.strip()}")
+            for line in r["candle"].split("\n"):
+                print(f"       {line.strip()}")
             if r.get("recent_chg"):
-                print("     [直近3日] " + " → ".join(f"{v:+.2f}%" for v in r["recent_chg"]))
+                print("       直近3日: "
+                      + " → ".join(f"{v:+.2f}%" for v in r["recent_chg"]))
             print()
 
     nxt = [r for r in rows if r.get("earnings_next")]
@@ -498,7 +621,7 @@ def main():
     except Exception:
         pass
 
-    today = dt.date.today().isoformat()
+    today = jst_today()
     headers = sd.get_headers()
     is_open, day_label = sd.trading_day_status(today, headers)
     if is_open is False:

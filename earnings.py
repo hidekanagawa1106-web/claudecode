@@ -31,6 +31,7 @@ import os
 import re
 import time
 import datetime as dt
+import zoneinfo
 
 import pandas as pd
 import requests
@@ -65,7 +66,10 @@ def fetch_jpx_schedule(cache_path: str = "kessan_schedule.xlsx") -> set:
     ここで落として日次スクリーニング全体を止めない）。
     """
     try:
-        today = dt.date.today().isoformat()
+        # 実行コンテナは UTC。8:00 JST は前日 23:00 UTC なので、
+        # dt.date.today() だとキャッシュの日付印が1日ずれ、
+        # 前日に取ったファイルを「今日のもの」として使い続けてしまう。
+        today = dt.datetime.now(zoneinfo.ZoneInfo("Asia/Tokyo")).date().isoformat()
         stamp = cache_path + ".date"
         cached = os.path.exists(cache_path) and \
             os.path.exists(stamp) and open(stamp).read().strip() == today
@@ -173,4 +177,60 @@ def fetch_earnings_signals(code: str, headers: dict, bar_dates: list) -> dict:
     elif len(fcast) == 1:
         out["earnings_revision"] = "initial"  # その期の初回予想（修正なし）
 
+    out.update(_estimate_next(actual, disc, pick_date))
+    out["earnings_disc_date"] = disc
+    return out
+
+
+# 四半期決算の間隔。これより短い推定は、同じ回の開示を二重に数えている。
+MIN_GAP_DAYS = 45
+# 前年の開示日をずらす日数。365ではなく364（52週）にして曜日を保つ。
+YEAR_SHIFT_DAYS = 364
+# 推定日を何日過ぎるまで「まだこれから」として扱うか。
+# 発表日は前後するので、少し過ぎていても「そろそろ決算」として出したい。
+GRACE_DAYS = 7
+
+
+def _estimate_next(actual: pd.DataFrame, last_disc: str, pick_date: str) -> dict:
+    """次の決算発表日を、前年の同じ四半期の開示日から推定する。
+
+    JPXの kessan.xlsx は翌営業日ぶんしか載らないため、朝に読むと
+    「本日の発表予定」しか分からない。数日先に決算を控えているかどうかは
+    そこからは判定できないので、開示履歴を1年ずらして当てる。
+
+    対象は実績を伴う開示だけに絞る。予想の修正や配当の変更まで含めると、
+    直近の開示の数日後に次回があることになってしまう
+    （2026-08-04 の実測で 三菱重工 が「あと1日」、三菱商事 が「あと3日」と出た）。
+    直近の開示から MIN_GAP_DAYS 以内の候補も同じ理由で捨てる。
+
+    ずらす幅は365日ではなく364日（52週）にして曜日を保つ。365だと
+    金曜開示が土曜に落ちて、その回を丸ごと取りこぼす
+    （任天堂の 2025-08-01 が 2026-08-01 の土曜になり、8月の決算を飛ばして
+    11月と推定した）。推定日を GRACE_DAYS まで過ぎていても候補に残すのは、
+    発表日が前後するため。過ぎている場合は日数が負になる。
+
+    あくまで推定。会社が発表日を前後させれば数日ずれる。
+    「そろそろ決算」を知るための目安であって、確定日ではない。
+    """
+    out = {"earnings_next_est": None, "earnings_next_days": None}
+    try:
+        base = dt.datetime.strptime(pick_date, "%Y-%m-%d")
+        floor = dt.datetime.strptime(str(last_disc)[:10], "%Y-%m-%d") \
+            + dt.timedelta(days=MIN_GAP_DAYS)
+        cands = []
+        for d in actual["DiscDate"].dropna().unique():
+            try:
+                nxt = (dt.datetime.strptime(str(d)[:10], "%Y-%m-%d")
+                       + dt.timedelta(days=YEAR_SHIFT_DAYS))
+            except ValueError:
+                continue
+            if nxt > base - dt.timedelta(days=GRACE_DAYS) and nxt > floor:
+                cands.append(nxt)
+        if not cands:
+            return out
+        nxt = min(cands)
+        out["earnings_next_est"] = nxt.strftime("%Y-%m-%d")
+        out["earnings_next_days"] = (nxt - base).days
+    except Exception:
+        pass
     return out
