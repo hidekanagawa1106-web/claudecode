@@ -23,6 +23,11 @@
   トレンド下向き  MA25が20日前より下                → 順張り対象外（禁止事項1）
   見送り         決算当日/翌日、または RSI>70        → §2 イベントフィルタ / 禁止事項2
 
+「押し目」は深さを問わない箱で、-2% も -18% も同じところに入る。
+深さで切る案を2つ実測して、どちらも支持されなかった（詳細は docs/usage.md）ので、
+切らずに **MA25乖離を一覧と各行に必ず出す**ことで区別できるようにしている。
+分類そのものより、乖離に見合った損切り幅と建玉を選ぶほうが実務に効く。
+
 エントリーそのものは判定しない。場中に entry_check.py（/entry-check）を使う。
 
 何を厚く出し、何を出さないか
@@ -61,10 +66,27 @@ import screen_daily as sd
 STANCE_ORDER = ["順張りの土俵", "押し目", "トレンド下向き", "見送り"]
 
 STANCE_NOTE = {
-    "順張りの土俵": "場中に §3-1 の4条件（ORB・VWAP・出来高1.5倍・連動銘柄）を確認してください。",
-    "押し目": "MA25は上向きですが終値がその下。入るなら §3-2 の逆張り4条件での判断になります。",
-    "トレンド下向き": "MA25が20日前より下。順張りの対象外です（禁止事項1）。",
-    "見送り": "運用方針に触れます。今日は新規に入らない前提で見てください。",
+    "順張りの土俵": [
+        "場中に §3-1 の4条件（ORB・VWAP・出来高1.5倍・連動銘柄）を確認してください。",
+    ],
+    # 「押し目」は乖離の深さを問わない箱なので、-2% と -18% が同じ見出しの下に並ぶ。
+    # 深さで切ることは実測が支持しなかった（15銘柄×370営業日/857件で検証。
+    # 乖離 -8% 超の162件のうち60%が半導体4銘柄の同一暴落で、その分を除いた
+    # 他11銘柄65件は +2.62%/勝率60% と、むしろ成績の良い場面だった。
+    # 終値>MA75 で切る案は、外す側のほうが +1.01% と良く、根拠にならなかった）。
+    # 切らずに、深さが目に入るようにする。
+    "押し目": [
+        "MA25は上向きですが終値がその下。§3-2 の逆張り4条件が対象です。",
+        "乖離が大きいものは押し目ではなく調整局面の可能性があります。",
+        "同じ -4% の損切りでも、乖離 -2% の銘柄と -18% の銘柄では刈られる確率が違います。",
+        "損切り幅と建玉の大きさを乖離に見合わせてください。",
+    ],
+    "トレンド下向き": [
+        "MA25が20日前より下。順張りの対象外です（禁止事項1）。",
+    ],
+    "見送り": [
+        "運用方針に触れます。今日は新規に入らない前提で見てください。",
+    ],
 }
 
 
@@ -359,18 +381,20 @@ def print_briefing(rows, names, macro, news, today, log_note):
     print("\n" + bar)
     print(f"■ 15銘柄の状態")
     print(bar)
+    # MA25乖離は一覧にも出す。同じ「押し目」でも -1.7% と -17.9% では
+    # 損切り幅も建玉の大きさも変わるため、詳細ブロックに畳むと見落とす。
     print("\n  " + f"{'コード':<6}{'銘柄':<15}{'終値':>9}{'前日比':>8}"
-          f"{'1単元':>8}  {'大きなトレンド':<14}{'前日の足':<12}今日の土俵")
+          f"{'1単元':>8}  {'トレンド':<8}{'MA25乖離':>9}  {'前日の足':<12}今日の土俵")
     for r in rows:
         sl = r.get("ma25_slope")
         tl = ("↑↑" if sl is not None and sl >= 3 else "↑" if sl is not None and sl >= 1
               else "→" if sl is not None and sl > -1 else "↓" if sl is not None and sl > -3
               else "↓↓")
-        pos = "MA25上" if r["ma25_break"] else "MA25下"
         kind = r["candle"].split(" ")[0].split("（")[0]
         print("  " + f"{r['code']:<6}{nm(r['code'])[:13]:<15}"
               f"{r['prev_close']:>8,.0f}円{r['chg']:>+7.2f}%"
-              f"{r['unit_cost'] / 10000:>7.1f}万  {tl + ' ' + pos:<16}{kind:<14}{r['stance']}")
+              f"{r['unit_cost'] / 10000:>7.1f}万  {tl:<9}{r['ma25_gap']:>+8.1f}%  "
+              f"{kind:<12}{r['stance']}")
 
     counts = {s: sum(1 for r in rows if r["stance"] == s) for s in STANCE_ORDER}
     print("\n  内訳: " + " / ".join(f"{s} {counts[s]}件" for s in STANCE_ORDER))
@@ -380,9 +404,12 @@ def print_briefing(rows, names, macro, news, today, log_note):
         if not group:
             continue
         print(f"\n\n■ {stance}  {len(group)}件")
-        print(f"  {STANCE_NOTE[stance]}\n")
+        for line in STANCE_NOTE[stance]:
+            print(f"  {line}")
+        print()
         for r in group:
             print(f"  {r['code']} {nm(r['code'])}   {r['prev_close']:,.0f}円"
+                  f"   MA25から {r['ma25_gap']:+.1f}%"
                   f"   1単元 {r['unit_cost'] / 10000:,.1f}万円   {r['driver']}")
             if r["blockers"]:
                 for w in r["blockers"]:
