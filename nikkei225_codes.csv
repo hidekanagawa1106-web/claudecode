@@ -1,0 +1,226 @@
+code,name
+1332,Nissui Corporation
+1605,Inpex Corp.
+1721,Comsys Holdings Corp.
+1801,Taisei Corp.
+1802,Obayashi Corp.
+1803,Shimizu Corp.
+1808,Haseko Corp.
+1812,Kajima Corp.
+1925,"Daiwa House Industry Co., Ltd."
+1928,"Sekisui House, Ltd."
+1963,JGC Corporation
+2002,Nisshin Seifun Group Inc.
+2269,"Meiji Holdings Company, Limited"
+2282,NH Foods Ltd.
+2413,M3 Inc.
+2432,"Dena Co., Ltd."
+2501,Sapporo Holdings Ltd.
+2502,"Asahi Group Holdings, Ltd."
+2503,"Kirin Holdings Co, Ltd"
+2768,Sojitz Corp.
+2801,Kikkoman Corp.
+2802,"Ajinomoto Co., Inc."
+285A,Kioxia Holdings Corp.
+2871,Nichirei Corp.
+2914,Japan Tobacco Inc.
+3086,"J. Front Retailing Co., Ltd."
+3092,"ZOZO Co., Ltd"
+3099,Isetan Mitsukoshi Holdings Ltd.
+3289,Tokyu Land Corp.
+3382,"Seven & I Holdings Co., Ltd."
+3401,Teijin Ltd.
+3402,"Toray Industries, Inc."
+3405,"Kuraray Co., Ltd."
+3407,Asahi Kasei Corp.
+3436,SUMCO Corp.
+3659,"Nexon Co., Ltd."
+3697,SHIFT Inc.
+3861,Oji Holdings Corporation
+4004,Resonac Corp.
+4005,"Sumitomo Chemical Co., Ltd."
+4021,"Nissan Chemical Industries, Ltd."
+4042,Tosoh Corp.
+4043,Tokuyama Corporation
+4061,"Denka Co., Ltd."
+4062,"Ibiden Co., Ltd."
+4063,"Shin-Etsu Chemical Co., Ltd."
+4151,"Kyowa Hakko Kirin Co., Ltd."
+4183,"Mitsui Chemicals, Inc."
+4188,Mitsubishi Chemical Holdings Corp.
+4208,"Ube Industries, Ltd."
+4307,Nomura Research Institute Ltd.
+4324,Dentsu Inc.
+4385,Mercari Inc.
+4452,Kao Corp.
+4502,Takeda Pharmaceutical Company Limited
+4503,Astellas Pharma Inc.
+4506,"Sumitomo Dainippon Pharma Co., Ltd."
+4507,"Shionogi & Co., Ltd."
+4519,"Chugai Pharmaceutical Co., Ltd."
+4523,"Eisai Co., Ltd."
+4543,Terumo Corp.
+4568,"Daiichi Sankyo Company, Limited"
+4578,"Otsuka Holdings Co., Ltd."
+4661,"Oriental Land Co., Ltd."
+4689,LY Corporation
+4704,Trend Micro Inc.
+4751,CyberAgent Inc.
+4755,Rakuten Inc.
+4901,Fujifilm Holdings Corp.
+4902,"Konica Minolta Holdings, Inc."
+4911,"Shiseido Co., Ltd."
+5019,"Idemitsu Kosan Co., Ltd"
+5020,Eneos Holdings
+5101,"The Yokohama Rubber Co., Ltd."
+5108,Bridgestone Corp.
+5201,AGC Inc.
+5214,"Nippon Electric Glass Co., Ltd."
+5233,Taiheiyo Cement Corp.
+5301,"Tokai Carbon Co., Ltd."
+5332,Toto Ltd.
+5333,"NGK Insulators, Ltd."
+5401,Nippon Steel Corp.
+5406,"Kobe Steel, Ltd."
+5411,"JFE Holdings, Inc."
+543A,Archion Corp.
+5631,"The Japan Steel Works, Ltd."
+5706,"Mitsui Mining & Smelting Co., Ltd."
+5711,Mitsubishi Materials Corp.
+5713,"Sumitomo Metal Mining Co., Ltd."
+5714,"Dowa Holdings Co., Ltd."
+5801,"The Furukawa Electric Co., Ltd."
+5802,"Sumitomo Electric Industries, Ltd."
+5803,Fujikura Ltd.
+5831,Shizuoka Financial Group
+6098,"Recruit Holdings Co., Ltd."
+6103,"Okuma Holdings, Inc."
+6113,Amada Co. Ltd.
+6146,Disco Corporation Ltd.
+6178,"Japan Post Holdings Co., Ltd."
+6273,SMC Corporation
+6301,Komatsu Ltd.
+6302,"Sumitomo Heavy Industries, Ltd."
+6305,"Hitachi Construction Machinery Co., Ltd."
+6326,Kubota Corp.
+6361,Ebara Corp.
+6367,"Daikin Industries, Ltd."
+6471,NSK Ltd.
+6472,NTN Corp.
+6473,JTEKT Corp.
+6479,"MinebeaMitsumi, Inc."
+6501,"Hitachi, Ltd."
+6503,Mitsubishi Electric Corp.
+6504,"Fuji Electric Co., Ltd."
+6506,"Yaskawa Electric Corporation, Limited"
+6526,Socionext Inc.
+6532,Baycurrent Inc.
+6645,Omron Corp.
+6701,NEC Corp.
+6702,Fujitsu Ltd.
+6723,Renesas Electronics
+6724,Seiko Epson Corp.
+6752,Panasonic Corp.
+6753,Sharp Corporation
+6758,Sony Corp.
+6762,TDK Corp.
+6770,"Alps Alpine Co., Ltd."
+6841,Yokogawa Electric Corp.
+6857,Advantest Corp.
+6861,Keyence Corp.
+6902,Denso Corp.
+6920,Lasertec
+6954,FANUC Corp.
+6963,"Rohm Co., Ltd."
+6971,Kyocera Corp.
+6976,"Taiyo Yuden Co., Ltd."
+6981,"Murata Manufacturing Co., Ltd."
+6988,Nitto Denko
+7004,Kanadevia Corp.
+7011,"Mitsubishi Heavy Industries, Ltd."
+7012,"Kawasaki Heavy Industries, Ltd."
+7013,IHI Corp.
+7186,Yokohama Financial Group
+7201,"Nissan Motor Co., Ltd."
+7202,Isuzu Motors Ltd.
+7203,Toyota Motor Corp.
+7211,Mitsubishi Motors Corp.
+7261,Mazda Motor Corp.
+7267,"Honda Motor Co., Ltd."
+7269,Suzuki Motor Corp.
+7270,Subaru Corp.
+7272,"Yamaha Motor Company, Ltd."
+7453,"Muji Co., Ltd"
+7532,Pan Pacific International Holdings Corp.
+7731,Nikon Corp.
+7733,Olympus Corp.
+7735,SCREEN Holdings
+7741,Hoya Corporation
+7751,Canon Inc.
+7752,"Ricoh Co., Ltd."
+7832,"Bandai Namco Holdings, Inc."
+7911,"Toppan Printing Co., Ltd."
+7912,"Dai Nippon Printing Co., Ltd."
+7951,Yamaha Corporation
+7974,"Nintendo Co., Ltd."
+8001,Itochu Corp.
+8002,Marubeni Corp.
+8015,Toyota Tsusho Corp.
+8031,"Mitsui & Co., Ltd."
+8035,Tokyo Electron Ltd.
+8053,Sumitomo Corp.
+8058,Mitsubishi Corp.
+8233,"Takashimaya Co., Ltd."
+8252,"Marui Group Co., Ltd."
+8253,"Credit Saison Co., Ltd."
+8267,"Aeon Co., Ltd."
+8304,"Aozora Bank, Ltd."
+8306,"Mitsubishi UFJ Financial Group, Inc."
+8308,"Resona Holdings, Inc."
+8309,"Sumitomo Mitsui Trust Holdings, Inc."
+8316,"Sumitomo Mitsui Financial Group, Inc."
+8331,"The Chiba Bank, Ltd."
+8354,"Fukuoka Financial Group, Inc."
+8411,"Mizuho Financial Group, Inc."
+8591,Orix Co.
+8601,Daiwa Securities Group Inc.
+8604,"Nomura Holdings, Inc."
+8630,"Sompo Holdings, Inc."
+8697,Japan Exchange Group Inc.
+8725,"MS&AD Insurance Group, Inc."
+8750,"Dai-ichi Life Insurance Company, Limited"
+8766,"Tokio Marine Holdings, Inc."
+8795,"T&D Holdings, Inc."
+8801,"Mitsui Fudosan Co., Ltd"
+8802,"Mitsubishi Estate Co., Ltd."
+8804,"Tokyo Tatemono Co., Ltd."
+8830,"Sumitomo Realty & Development Co., Ltd."
+9001,"Tobu Railway Co., Ltd."
+9005,Tokyu Corp.
+9007,"Odakyu Electric Railway Co., Ltd."
+9008,Keio Corp.
+9009,"Keisei Electric Railway Co., Ltd."
+9020,East Japan Railway Company
+9021,West Japan Railway Company
+9022,Central Japan Railway Company
+9064,"Yamato Holdings Co., Ltd."
+9101,Nippon Yusen K.K.
+9104,"Mitsui O.S.K. Lines, Ltd."
+9107,"Kawasaki Kisen Kaisha, Ltd."
+9147,Nippon Express Holdings Inc.
+9201,"Japan Airlines Co., Ltd."
+9202,ANA Holdings Inc.
+9432,Nippon Telegraph & Telephone Corp.
+9433,KDDI Corp.
+9434,SoftBank Corp.
+9501,"Tokyo Electric Power Company Holdings, Incorporated"
+9502,"Chubu Electric Power Co., Inc."
+9503,"The Kansai Electric Power Co., Inc."
+9531,"Tokyo Gas Co., Ltd."
+9532,"Osaka Gas Co., Ltd."
+9602,"Toho Co., Ltd."
+9735,"Secom Co., Ltd."
+9766,Konami Corp.
+9843,"Nitori Holdings Co., Ltd."
+9983,"Fast Retailing Co., Ltd."
+9984,SoftBank Group Corp.

@@ -1,0 +1,16 @@
+# 実行に必要なパッケージ。
+# 定期実行は毎回まっさらなコンテナで走るため、ここに書いていないものは入っていない前提。
+#
+#   pip install -r requirements.txt
+#
+# バージョンは下限だけ指定してある。上限を切っていないのは、
+# 使っている機能がどれも枯れた API だから。壊れたらここで固定する。
+
+pandas>=2.0
+numpy>=1.24
+requests>=2.28
+PyYAML>=6.0
+
+# earnings.py が JPX の決算発表予定日(Excel)を pd.read_excel で読む。
+# pandas 単体では xlsx を開けないため必須。
+openpyxl>=3.1

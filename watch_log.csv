@@ -1,0 +1,16 @@
+﻿pick_date,code,track,driver,group,tier,pattern,ma25_break,volume_ok,rsi,quant_all_pass,pick_rank,prev_close,score,score_trend,score_rsi,score_volume,score_candle,volume_ratio,perfect_order,earnings_days_ago,earnings_op_yoy,earnings_progress,earnings_revision,earnings_next,catalyst_reasons,macro_score,macro_threshold,ma25_slope,ma25_gap,unit_cost,outcome_date,next_open,next_high,next_low,next_close,gap_pct,day_change_pct,outcome_recorded
+2026-08-03,5803,トレンド下向き,電線・データセンター,半導体・AI関連,,-,False,False,38.5,False,,4290.0,8,0,8,0,0,0.93,False,56,39.2,96.8,up,False,,1,3,-5.94,-11.57,429000,,,,,,,,False
+2026-08-03,8306,見送り,銀行,メガバンク,,陽の大引け坊主,True,True,51.3,True,,3567.0,75,25,20,10,20,1.2,False,0,48.2,,,False,,0,3,9.3,1.47,356700,,,,,,,,False
+2026-08-03,8058,見送り,商社,商社,,-,True,True,67.5,False,,4787.0,57,25,12,20,0,2.18,False,0,47.0,27.1,initial,False,,-2,2,-0.64,4.15,478700,,,,,,,,False
+2026-08-03,7203,見送り,自動車,自動車,,-,True,True,59.7,True,,2963.5,55,25,20,10,0,1.33,False,60,-21.5,99.1,up,True,,0,2,3.98,1.96,296350,,,,,,,,False
+2026-08-03,7011,見送り,防衛・重工,防衛・重工,,陽の大引け坊主,False,False,52.6,False,,3799.0,55,10,20,5,20,1.2,False,58,35.3,127.7,up,True,,1,2,3.03,-0.43,379900,,,,,,,,False
+2026-08-03,8766,順張りの土俵,保険・証券,保険,,-,True,False,57.5,False,,7885.0,50,25,20,5,0,1.04,False,52,-7.1,96.1,up,False,,-1,3,7.93,1.31,788500,,,,,,,,False
+2026-08-03,7974,順張りの土俵,レジャー・ゲーム,,,-,True,False,59.9,False,,7589.0,45,25,20,0,0,0.84,False,60,27.5,97.3,flat,False,,,,0.89,5.16,758900,,,,,,,,False
+2026-08-03,7453,順張りの土俵,小売・内需,,,陽の大引け坊主,True,False,49.3,False,,4217.0,53,25,8,0,20,0.75,False,15,36.1,82.5,up,False,,,,12.21,5.2,421700,,,,,,,,False
+2026-08-03,9433,順張りの土俵,通信,,,-,True,False,58.6,False,,2903.0,50,25,20,5,0,1.13,False,58,1.1,100.8,down,False,,,,5.35,2.0,290300,,,,,,,,False
+2026-08-03,6702,順張りの土俵,ハイテク・IT,,,-,True,False,56.6,False,,3500.0,50,25,20,5,0,1.11,False,2,56.9,12.7,initial,False,,,,1.57,2.99,350000,,,,,,,,False
+2026-08-03,9101,見送り,海運,海運,,-,True,True,80.1,False,,6042.0,35,25,0,10,0,1.37,False,59,-34.3,115.5,flat,False,,-2,2,4.36,7.83,604200,,,,,,,,False
+2026-08-03,6752,順張りの土俵,電機,,,-,True,True,46.9,True,,4281.0,38,15,8,15,0,1.9,False,2,110.0,30.9,initial,False,,,,1.78,1.64,428100,,,,,,,,False
+2026-08-03,6525,押し目,半導体製造装置,半導体・AI関連,,-,False,True,33.2,False,,7785.0,23,0,8,15,0,1.53,False,57,-18.5,107.8,flat,False,,1,3,2.25,-17.95,778500,,,,,,,,False
+2026-08-03,9984,トレンド下向き,ハイテク・IT,半導体・AI関連,,陽線(上ヒゲ小),False,False,37.9,False,,5393.0,23,0,8,5,10,1.05,False,55,333.7,,,False,,1,3,-16.83,-6.28,539300,,,,,,,,False
+2026-08-03,6981,トレンド下向き,電子部品,半導体・AI関連,,-,False,True,34.5,False,,7161.0,18,0,8,10,0,1.33,False,1,59.8,22.9,initial,False,,1,3,-15.35,-19.63,716100,,,,,,,,False

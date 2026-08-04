@@ -1,0 +1,11 @@
+﻿pick_date,code,driver,tier,pattern,ma25_break,volume_ok,rsi,quant_all_pass,pick_rank,prev_close,score,score_trend,score_rsi,score_volume,score_candle,volume_ratio,perfect_order,earnings_days_ago,earnings_op_yoy,earnings_progress,earnings_revision,earnings_next,outcome_date,next_open,next_high,next_low,next_close,gap_pct,day_change_pct,outcome_recorded,track,group,catalyst_reasons,macro_score,macro_threshold
+2026-07-30,6701,電機,watch,-,True,True,69.1,True,1,5002.0,72,40,12,20,0,2.8,True,1,66.1,,,False,2026-07-31,4692.0,4858.0,4660.0,4740.0,-6.2,1.02,True,,,,,
+2026-07-30,6501,ハイテク・IT,watch,陽の大引け坊主,True,True,72.2,False,2,5255.0,70,25,5,20,20,2.13,False,1,39.5,20.9,initial,False,2026-07-31,5299.0,5362.0,5170.0,5267.0,0.84,-0.6,True,,,,,
+2026-07-30,4661,レジャー・ゲーム,core,-,True,True,66.0,True,3,2920.0,67,40,12,15,0,1.66,True,0,23.1,29.7,initial,False,2026-07-31,3024.0,3167.0,2991.0,3167.0,3.56,4.73,True,,,,,
+2026-07-30,6098,ハイテク・IT,watch,-,True,False,56.2,False,4,12915.0,65,40,20,5,0,1.05,True,53,28.5,106.8,up,False,2026-07-31,12575.0,12645.0,12385.0,12550.0,-2.63,-0.2,True,,,,,
+2026-07-30,4568,医薬品,core,-,True,True,69.8,True,5,2889.0,62,40,12,10,0,1.29,True,57,-31.0,100.0,down,True,2026-07-31,2754.0,2775.5,2562.0,2567.5,-4.67,-6.77,True,,,,,
+2026-07-31,4661,レジャー・ゲーム,core,陽の大引け坊主,True,True,72.5,False,1,3167.0,85,40,5,20,20,3.21,True,1,23.1,29.7,initial,False,,,,,,,,False,順張り,,,,
+2026-07-31,6861,FA・機械,watch,-,True,True,58.0,True,2,81150.0,75,40,20,15,0,1.85,True,3,44.7,,,False,,,,,,,,False,順張り,,,,
+2026-07-31,6701,電機,watch,-,True,True,61.2,True,3,4740.0,75,40,20,15,0,1.54,True,2,66.1,,,False,,,,,,,,False,順張り,,,,
+2026-07-31,7751,電機,core,-,True,True,53.8,True,4,4428.0,65,25,20,20,0,2.13,False,4,7.6,49.6,up,False,,,,,,,,False,順張り,,,,
+2026-07-31,6758,ハイテク・IT,core,-,True,True,83.9,False,5,3787.0,60,40,0,20,0,2.26,True,0,40.2,27.7,initial,False,,,,,,,,False,順張り,,,,
