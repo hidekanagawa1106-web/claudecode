@@ -43,6 +43,7 @@ MA25の下にいた。テクニカルだけを見る限り候補には一切出�
 
 import argparse
 import datetime as dt
+import zoneinfo
 
 import pandas as pd
 import requests
@@ -53,7 +54,20 @@ UA = {"User-Agent": "Mozilla/5.0"}
 
 
 def fetch_series(ticker: str) -> pd.DataFrame:
-    """日次終値を (date, close) で返す。取得できなければ空。"""
+    """日次終値を (date, close) で返す。取得できなければ空。
+
+    Yahooは直近の営業日のバーを close: null のまま返すことがある。バーの枠は
+    あるのに終値が入っていない状態で、確定値は meta.regularMarketPrice にある。
+    落としたままにすると1営業日ぶん古い比較になるため、確定していれば補う。
+
+    2026-08-04 08:00 JST 時点の実測では、朝スコアが使う24ティッカー中20本で
+    直近セッション（08-03）が欠けていた。数分違いの2回の実行でサンディスクが
+    +6.03% → -5.09% と反転したのはこれが原因で、時間外の値動きではなかった。
+      補完あり  1288.03 / 1214.83 - 1 = +6.03%   （08-03 vs 07-31）
+      補完なし  1214.83 / 1279.96 - 1 = -5.09%   （07-31 vs 07-30）
+    Yahooが2回の実行の間にバックフィルしたことで、比較していた日そのものが
+    ずれていた。
+    """
     try:
         url = CHART.format(requests.utils.quote(ticker, safe=""))
         j = requests.get(url, headers=UA, timeout=30).json()["chart"]["result"][0]
@@ -62,9 +76,35 @@ def fetch_series(ticker: str) -> pd.DataFrame:
             for t, c in zip(j["timestamp"], j["indicators"]["quote"][0]["close"])
             if c is not None
         ]
+        tail = settled_close(j.get("meta") or {})
+        if tail and (not rows or tail[0] > rows[-1][0]):
+            rows.append(tail)
         return pd.DataFrame(rows, columns=["date", "close"])
     except Exception:
         return pd.DataFrame(columns=["date", "close"])
+
+
+def settled_close(meta: dict):
+    """meta が「引け済みの終値」を持っていれば (日付, 終値) を返す。
+
+    引けたかどうかは currentTradingPeriod.regular.start で判定する。この値は
+    次の取引時間帯を指すので、regularMarketTime がその開始より前なら、
+    その価格は既に終わったセッションの確定値ということになる。
+    場中に走らせたときに未確定の値を掴まないための歯止めでもある。
+
+    24時間動く銘柄（ドル円は Europe/London で 00:00-23:59）は
+    regularMarketTime が開始より後になるため、ここでは何も返さない。
+    その場合の日中の振れは不感帯側で吸収する。
+    """
+    price, when = meta.get("regularMarketPrice"), meta.get("regularMarketTime")
+    start = ((meta.get("currentTradingPeriod") or {}).get("regular") or {}).get("start")
+    if price is None or not when or not start or when >= start:
+        return None
+    try:
+        tz = zoneinfo.ZoneInfo(meta["exchangeTimezoneName"])
+    except Exception:
+        return None
+    return (dt.datetime.fromtimestamp(when, tz).strftime("%Y-%m-%d"), float(price))
 
 
 def change_before(df: pd.DataFrame, asof: str):
