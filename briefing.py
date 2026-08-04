@@ -421,8 +421,14 @@ def print_briefing(rows, names, macro, news, today, log_note):
             # 「連動グループなし」と出してしまうと事実と食い違う。
             g = r["group"]
             if not g:
-                print("     [マクロ] 連動グループなし（単独銘柄）。")
-                print("              セクター単位の追い風・逆風は判定対象外です")
+                # 単独銘柄はセクターの朝スコアを持たないが、それだけだと
+                # マクロ欄が空になる。全体の地合いくらいは出しておく。
+                print("     [マクロ] 連動グループなし（単独銘柄）。"
+                      "セクター単位の追い風・逆風は判定対象外です")
+                mkt = (macro or {}).get("market")
+                if mkt:
+                    print("              全体の地合い: " + " / ".join(
+                        f"{n} {v:+.2f}%" for n, v in mkt))
             else:
                 tot, th = group_scores.get(g, (None, None))
                 if tot is None:
@@ -575,7 +581,18 @@ def collect_macro(conf: dict) -> dict:
             parts.append("逆風: " + "・".join(e["逆"]))
         notes.append(f"急変 {name} {e['変化率']:+.2f}%"
                      + (f"  → {' / '.join(parts)}" if parts else "  → 採点対象外"))
-    return {"notes": notes, "scores": scores,
+    # 単独銘柄はグループの朝スコアを持たないため、マクロ欄が空になる。
+    # 市場全体の指標だけ取り出して、どの銘柄にも出せるようにしておく。
+    # 採点には使わない。地合いの背景として並べるだけ。
+    market = []
+    for want in ("日経平均", "ドル円"):
+        for items in items_by_group.values():
+            hit = next((i for i in items
+                        if i["名前"] == want and i["変化率"] is not None), None)
+            if hit:
+                market.append((want, hit["変化率"]))
+                break
+    return {"notes": notes, "scores": scores, "market": market,
             "groups_items": items_by_group, "topics": topics}
 
 

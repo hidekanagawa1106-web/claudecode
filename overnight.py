@@ -166,8 +166,18 @@ def looks_like_other_company(title: str, name: str) -> bool:
 
     完全ではない。子会社（トヨタ自動車東日本など）も落ちるが、
     親会社の株価材料としては別物なので、この用途では落として構わない。
+
+    照合の前に両方を NFKC で正規化する。company_master.csv の社名は
+    JPX 由来で英数字が全角のため（ＫＤＤＩ / ＫＯＫＵＳＡＩ　ＥＬＥＣＴＲＩＣ /
+    パナソニック　ホールディングス）、見出し側の半角表記と字面が一致せず、
+    「一度も社名が出てこない＝別会社」と判定して全件落としていた。
+    2026-08-04 の実測では KDDI が 20件→0件、パナソニックHD が 7件→0件、
+    KOKUSAI が 1件→0件。純粋な漢字社名（富士通など）だけが無傷だった。
     """
     import re
+    import unicodedata
+    title = unicodedata.normalize("NFKC", title)
+    name = unicodedata.normalize("NFKC", name)
     for m in re.finditer(re.escape(name), title):
         nxt = title[m.end():m.end() + 1]
         if nxt and re.match(r"[一-龥ァ-ヴー]", nxt) and nxt != "株":
