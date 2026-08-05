@@ -194,32 +194,51 @@ def volatility(df: pd.DataFrame, n: int = 14) -> dict:
             "ギャップ": round(gap.mean(), 2), "ギャップ最大": round(gap.max(), 2)}
 
 
-def stop_target(vol: dict, price: float) -> dict:
-    """運用方針 §5 に沿った推奨値。
+def stop_target(vol: dict, price: float, style: str = "daytrade") -> dict:
+    """運用方針 §5 の4区分から、その銘柄・その時間軸に当たるものを選ぶ。
 
-    §5 はスイング -4% / +7% を定めているが、「値動きの大きさに応じて幅を変える。
-    ここを一律にすると機能しない」とも書かれている。そこで固定値をそのまま出しつつ、
-    その銘柄の実測ボラティリティと突き合わせて妥当かどうかを添える。
+    §5 は「値動きの大きさに応じて幅を変える。ここを一律にすると機能しない」と
+    定めており、区分は4つある。デイトレの高ボラ／大型株の別は銘柄の性質なので
+    日中値幅の実測から決まるが、デイトレかスイングかは持ち方の話で銘柄からは
+    決まらないため、呼び出し側が --style で渡す。
+
+    高ボラと大型株の境目は日中値幅 3.5%。方針が挙げる実例（キオクシアは高ボラ側、
+    三菱UFJ・トヨタは大型株側）を分ける水準として置いた。**方針に数値の定義は
+    なく、これは実装上の目安である。**
     """
-    swing_stop, swing_target = -4.0, 7.0
     tr = vol["日中値幅"]
-    # 損切り幅が日中値幅より狭いと、方向が合っていてもノイズで刈られる
-    ratio = abs(swing_stop) / tr if tr else 0
-    if ratio < 1.0:
-        verdict = "狭すぎる。日中の振れ幅に届かず、ノイズで刈られる可能性が高い"
-        adj = -round(tr * 1.5, 1)
-    elif ratio < 1.3:
-        verdict = "やや狭い。日中値幅とほぼ同水準"
-        adj = -round(tr * 1.5, 1)
-    elif ratio > 3.0:
-        verdict = "広い。損失額が大きくなるためポジションサイズを小さくする"
-        adj = None
+    if style == "swing":
+        stop, target, label = -4.0, 7.0, "スイング"
+    elif style == "counter":
+        stop, target, label = -1.5, 7.0, "逆張りエントリー（利確は順張りに準じる）"
+    elif tr >= 3.5:
+        stop, target, label = -2.5, 4.0, f"高ボラ銘柄のデイトレ（日中値幅 {tr}%）"
     else:
-        verdict = "妥当な水準"
-        adj = None
-    return {"損切り率": swing_stop, "利確率": swing_target,
-            "損切り価格": round(price * (1 + swing_stop / 100), 1),
-            "利確価格": round(price * (1 + swing_target / 100), 1),
+        stop, target, label = -0.6, 0.9, f"大型株のデイトレ（日中値幅 {tr}%）"
+
+    # 損切り幅が日中値幅より狭いと、方向が合っていてもノイズで刈られる。
+    # デイトレはその日の値幅の一部を取りに行くので、日中値幅を下回るのは前提。
+    # スイングは日をまたぐため、日中値幅に届かない損切りはノイズで刈られる。
+    ratio = abs(stop) / tr if tr else 0
+    adj = None
+    if style == "swing":
+        if ratio < 1.0:
+            verdict = "狭すぎる。日中の振れ幅に届かず、ノイズで刈られる可能性が高い"
+            adj = -round(tr * 1.5, 1)
+        elif ratio < 1.3:
+            verdict = "やや狭い。日中値幅とほぼ同水準"
+            adj = -round(tr * 1.5, 1)
+        elif ratio > 3.0:
+            verdict = "広い。損失額が大きくなるためポジションサイズを小さくする"
+        else:
+            verdict = "妥当な水準"
+    elif style == "counter":
+        verdict = f"日中値幅の {ratio:.2f}倍。逆張りは反発の失敗をすぐ認める幅"
+    else:
+        verdict = f"日中値幅の {ratio:.2f}倍。デイトレは当日値幅の一部を取る前提"
+    return {"区分": label, "損切り率": stop, "利確率": target,
+            "損切り価格": round(price * (1 + stop / 100), 1),
+            "利確価格": round(price * (1 + target / 100), 1),
             "日中値幅比": round(ratio, 2), "評価": verdict, "調整案": adj}
 
 
@@ -231,6 +250,8 @@ def main():
     ap.add_argument("--universe", default="universe.csv")
     ap.add_argument("--map", default="driver_map.yaml")
     ap.add_argument("--names", default="company_master.csv")
+    ap.add_argument("--style", choices=["daytrade", "swing", "counter"], default="daytrade",
+                    help="§5 のどの区分で見るか。デイトレの高ボラ/大型株は日中値幅から自動判定")
     ap.add_argument("--interval", choices=["3m", "5m"], default="5m",
                     help="逆張り4条件を見る足。3分足は1分足から合成する")
     args = ap.parse_args()
@@ -296,14 +317,19 @@ def main():
     print(f"  日中値幅 平均 {vol['日中値幅']}% / 最大 {vol['日中値幅最大']}%")
     print(f"  ギャップ 平均 {vol['ギャップ']}% / 最大 {vol['ギャップ最大']}%")
 
-    st = stop_target(vol, price)
-    print("\n■ 損切り・利確の推奨（§5 スイング基準）")
+    st = stop_target(vol, price, args.style)
+    print(f"\n■ 損切り・利確の推奨（§5 {st['区分']}）")
     print(f"  損切り {st['損切り率']:+.1f}% → {st['損切り価格']:,.1f}円")
     print(f"  利確   {st['利確率']:+.1f}% → {st['利確価格']:,.1f}円")
-    print(f"  損切り幅は日中値幅の {st['日中値幅比']}倍 … {st['評価']}")
+    print(f"  {st['評価']}")
     if st["調整案"]:
         print(f"  → 調整するなら {st['調整案']:+.1f}% 程度（日中値幅の1.5倍）")
-    if vol["ギャップ"] >= abs(st["損切り率"]) * 0.7:
+    if args.style != "swing":
+        sw = stop_target(vol, price, "swing")
+        print(f"  参考: スイングで持つなら {sw['損切り率']:+.1f}% / {sw['利確率']:+.1f}%"
+              f" → {sw['損切り価格']:,.1f}円 / {sw['利確価格']:,.1f}円")
+    # ギャップは持ち越したポジションだけが踏む。当日決済のデイトレには効かない
+    if args.style == "swing" and vol["ギャップ"] >= abs(st["損切り率"]) * 0.7:
         print(f"  ⚠ 平均ギャップ {vol['ギャップ']}% が損切り幅に近い。"
               f"寄り付きで逆指値を飛ばされる可能性がある")
     print("  ※ ポジションサイズは損切り幅から逆算してください（§5）")
