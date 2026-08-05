@@ -153,7 +153,9 @@ def print_stats(df: pd.DataFrame):
             print(f"    {val:<8} n={len(sub):>3}  勝率 {w/len(sub)*100:>5.1f}%  "
                   f"平均 {sub['pnl_pct'].mean():+.2f}%")
 
-    for col, label in [("group", "連動グループ別"), ("exit_reason", "決済理由別")]:
+    # §8 は「銘柄ごとの成績差」を見る（v2 の「枠ごと」から v3 で変更）。
+    # 売買対象を限定しないため件数は分散する。母数が少ないうちは順位を読まない。
+    for col, label in [("銘柄名", "銘柄別"), ("exit_reason", "決済理由別")]:
         if col in done and done[col].notna().any():
             print(f"\n  [{label}]")
             for val, sub in done.groupby(done[col].astype(str)):
