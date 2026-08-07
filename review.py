@@ -44,6 +44,8 @@ def main():
     print(f"  始値から引けにかけてさらに上昇した割合: {completed['day_up'].mean() * 100:.1f}%")
     print(f"  平均日中変化率: {completed['day_change_pct'].mean():.2f}%\n")
 
+    # quant_all_pass の定義は 2026-08-07 に変わっている（v3 で `RSI < 70` の項を外した）。
+    # それ以前の行は旧定義で入っているため、境目をまたぐ集計は厳密には同種でない。
     print("[quant_all_pass別の比較]")
     for val in [True, False]:
         sub = completed[completed["quant_all_pass"] == val]

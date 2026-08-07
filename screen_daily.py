@@ -15,10 +15,11 @@
   ような分足ベースの条件は、このスクリプトの記録には含まれていません。
   記録できるのは「前日終値→翌日始値のギャップ率」「翌日の始値→終値の当日変化率」
   までです。ORBまで含めた検証をしたい場合は、別途分足データの取得手段が必要です。
-- 「材料の裏付け」(運用方針_v2 セクション7 [3])は自動判定していません。
+- 「材料の裏付け」(運用方針_v3 §7 [3])は自動判定していません。
   quant_all_pass=True の銘柄についても、材料面は手動で確認してください。
 - ここで出力される銘柄は「翌日ウォッチする候補」であり、実際のエントリーは
-  場中に順張り4条件(ORB・VWAP・出来高・連動銘柄)を満たすかで別途判断してください。
+  場中に順張りの必須2条件(ORB上抜け・前日終値時点の日足MA25の上)を満たすかで
+  別途判断してください。VWAP・場中の出来高・連動は v3 では参考項目に降格しました。
 
 事前準備:
 - universe.csv (build_universe.py で生成済み)
@@ -205,15 +206,37 @@ def score_trend(close, ma5, ma25, ma25_prev, ma75) -> tuple:
 
 
 def score_rsi(rsi: float) -> int:
-    if rsi >= 75:
-        return 0
+    """RSI の配点。**v3 で向きを反転させた。**
+
+    v2 は 65以上を減点し 75以上を0点にしていた（買われすぎ＝危険という前提）。
+    実測はその逆だった。
+
+    | 検証 | データ | 結果 |
+    |---|---|---|
+    | 74銘柄・日足5年 | Yahoo | RSI70超 超過5日 +0.22% |
+    | 15銘柄・日足5年 | J-Quants | RSI70超 超過5日 +0.30%（5年すべてプラス） |
+    | 15銘柄・5分足1ヶ月 | Yahoo | RSI70以上 勝率57.2% |
+
+    5分足で7区分に切ると単調増加し（〜30 で -0.206%／80〜 で +0.357%）、
+    計算式（ワイルダー平滑／単純平均）と期間（9／14）の4通りすべてで同じ向きだった。
+    RSI は買われすぎ警告ではなく、トレンドの強さの連続量として働いている。
+
+    **配点は単調増加にするが、幅は狭くした。** 運用方針 §4 は「まず自動ブロッカーから
+    参考表示に降格し、実取引が20件溜まってから確定する」と段階を踏むことを定めている。
+    現実の候補はハードフィルタを通った時点でほぼ RSI 50以上に寄るため、実際に効く
+    差は 16〜20点の4点ぶんに収まる。順位を高RSI側へ大きく寄せるのは確定後にする。
+    """
     if rsi >= 70:
-        return 5
-    if rsi >= 65:
-        return 12
-    if rsi >= 50:
         return 20
-    return 8
+    if rsi >= 60:
+        return 18
+    if rsi >= 50:
+        return 16
+    if rsi >= 40:
+        return 12
+    if rsi >= 30:
+        return 8
+    return 5
 
 
 def score_volume(ratio: float) -> int:
@@ -304,7 +327,7 @@ def detect_catalysts(rows: list, min_chg: float = 3.0,
                      min_group_ratio: float = 1 / 3, min_group_count: int = 3) -> list:
     """上昇トレンド条件を満たさない銘柄から、明確な需給変化があったものを拾う。
 
-    順張りのハードフィルタは「下降トレンドの途中で買う」(運用方針 §4 禁止事項1)を
+    順張りのハードフィルタは「下降トレンドの途中で買う」(運用方針 §4 の唯一の禁止事項)を
     防ぐためのものだが、セクター全体が外部材料で急反発した日を丸ごと取りこぼす。
     実例として2026-07-31、半導体・AI関連19銘柄のうち18銘柄が+3%以上動いたが、
     7月の調整でMA25の下にいたため1銘柄も候補に出なかった。
@@ -418,8 +441,11 @@ def screen_universe(universe_df: pd.DataFrame, headers: dict, schedule: set):
                 "ma25_break": cond_ma25_break,
                 "volume_ok": vol_ratio >= 1.2,
                 "rsi": round(rsi, 1),
+                # v3 で `rsi < 70` の項を外した（§7[5] の削除に対応）。
+                # 2026-08-07 より前の picks_log.csv の行は旧定義で入っている。
+                # review.py で quant_all_pass 別に比較するときは境目に注意する。
                 "quant_all_pass": bool(cond_ma25_break and cond_ma25_trend
-                                       and vol_ratio >= 1.2 and rsi < 70),
+                                       and vol_ratio >= 1.2),
                 "prev_close": latest["close"],
                 "score": s_trend + s_rsi + s_vol + s_candle,
                 "score_trend": s_trend, "score_rsi": s_rsi,
@@ -461,8 +487,10 @@ def check_blockers(r: dict) -> list:
     if days is not None and not pd.isna(days) and int(days) == 0:
         # pick_date は前営業日。そこで発表 = 今日は「決算翌日」
         out.append("前営業日に決算発表 — §2 イベントフィルタ（決算翌日）")
-    if r.get("rsi") is not None and r["rsi"] > 70:
-        out.append(f"RSI {r['rsi']} — 禁止事項2（RSI 70超えで新規に買う）")
+    # RSI 70超えのブロッカーは v3 で撤去した。3つの独立したデータセットすべてで
+    # 否定側だったため（score_rsi のドックコメントに実測を置いてある）。
+    # 運用方針 §4 の「まず自動ブロッカーから参考表示に降格する」に対応する。
+    # RSI は _entry_notes で参考として表示し、§8 の記録項目として残す。
     return out
 
 
@@ -561,7 +589,9 @@ def _entry_notes(r: dict) -> list:
     out = []
     rsi = r.get("rsi")
     if rsi is not None:
-        note = "過熱ぎみ" if rsi >= 65 else ("中立" if rsi >= 50 else "勢いは弱い")
+        # v2 は 65以上を「過熱ぎみ」と書いていた。実測では高いほど順行しやすい
+        note = ("トレンドが強い" if rsi >= 70
+                else "中立" if rsi >= 50 else "勢いは弱い")
         out.append(f"RSI {rsi}（{note}）")
     vr = r.get("volume_ratio")
     if vr:
@@ -641,10 +671,8 @@ def print_report(selected, candidates, funnel, rejected, names, pick_date,
             print(f"  × {r['code']} {nm(r['code'])}   {r['prev_close']:,.0f}円   {r['driver']}")
             for w in r["blockers"]:
                 print(f"     理由: {w}")
-            rsi_blocked = any("RSI" in w for w in r["blockers"])
-            ref = [x for x in _reasons(r)
-                   if not (rsi_blocked and x.startswith("RSI"))]
-            print(f"     参考: スコア{r['score']}点 / " + " / ".join(ref[-3:]))
+            print(f"     参考: スコア{r['score']}点 / "
+                  + " / ".join(_reasons(r)[-3:]))
             print()
 
     if flagged:
@@ -653,8 +681,8 @@ def print_report(selected, candidates, funnel, rejected, names, pick_date,
             print(f"  ! {r['code']} {nm(r['code'])}  {r['_chg']:+.2f}%  "
                   f"出来高{r['volume_ratio']:.2f}倍  RSI {r['rsi']}")
             print(f"     {r['catalyst_reasons']}")
-        print("     ※ 順張り条件を満たしません（禁止事項1）。")
-        print("        入るなら逆張り4条件(§3-2)での判断になります。")
+        print("     ※ 順張り条件を満たしません（§4 禁止事項）。")
+        print("        入るなら逆張り4条件(§3-2)での判断になります。v3 では日足で判定します。")
 
     nxt = [c for c in candidates if c.get("earnings_next")]
     if nxt:
@@ -674,8 +702,9 @@ def print_report(selected, candidates, funnel, rejected, names, pick_date,
 
     print("\n" + bar)
     print("※ 材料の裏付けは自動判定していません。決算・ニュースは個別にご確認ください。")
-    print("※ エントリーは場中の順張り4条件（ORB・VWAP・出来高1.5倍・連動銘柄）で")
-    print("   判断してください。銘柄ごとの詳細は entry_check.py を使ってください。")
+    print("※ エントリーは場中の順張り必須2条件（ORB上抜け・前日終値時点の日足MA25の上）で")
+    print("   判断してください。VWAP・場中の出来高・連動は v3 では参考項目です。")
+    print("   銘柄ごとの詳細は entry_check.py を使ってください。")
 
 
 def main():
@@ -728,8 +757,8 @@ def main():
     print(f"\n記録済みサンプル数: {len(completed)}件"
           f"（20件たまったら review.py でのレビューを検討してください）")
 
-    print("\n※ 材料の裏付け(セクション7 [3])は自動判定していません。手動確認をお願いします。")
-    print("※ ここに出た銘柄も、実際のエントリーは場中の順張り4条件を満たすかどうかで判断してください。")
+    print("\n※ 材料の裏付け(§7 [3])は自動判定していません。手動確認をお願いします。")
+    print("※ ここに出た銘柄も、実際のエントリーは場中の順張り必須2条件を満たすかで判断してください。")
     print("※ ここでの「値動きの記録」は日足ベースです。ORB(寄り付き後の分足)までは検証していません。")
 
 
