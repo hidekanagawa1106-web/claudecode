@@ -30,12 +30,13 @@ POSTS_CSV = os.path.join(HERE, "posts.csv")
 COLUMNS = [
     "date", "slot", "format", "episode", "hook", "url",
     "impressions", "likes", "reposts", "replies", "bookmarks",
-    "profile_clicks", "link_clicks", "followers_delta", "note",
+    "profile_clicks", "reply_impressions", "link_clicks",
+    "followers_delta", "note",
 ]
 
 NUMERIC = [
     "impressions", "likes", "reposts", "replies", "bookmarks",
-    "profile_clicks", "link_clicks", "followers_delta",
+    "profile_clicks", "reply_impressions", "link_clicks", "followers_delta",
 ]
 
 # 表示上の下限。これ未満のサンプル数では型ごとの比較を出さない。
@@ -55,28 +56,41 @@ def load():
     if not os.path.exists(POSTS_CSV):
         return pd.DataFrame(columns=COLUMNS)
     df = pd.read_csv(POSTS_CSV)
+    # 列を後から足しても、既存の CSV がそのまま読めるようにしておく。
+    df = df.reindex(columns=COLUMNS)
     for col in NUMERIC:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+        df[col] = pd.to_numeric(df[col], errors="coerce")
     return df
 
 
 def derive(df):
     """派生指標を足す。
 
-    eng_rate はバズの大きさ、prof_rate は導線に効いたかを見る。
-    転職アフィリの目的からすると後者のほうが本命で、
-    「伸びたのにプロフィールに誰も来ていない投稿」を見つけるのがこの列の仕事。
+    アフィリの導線は1stリプに置くので、本命は2段のファネルになる。
+
+        本文インプレッション → リプに降りた人 → リンクを踏んだ人
+                    drop_rate           reply_ctr
+                    └────────── funnel_rate ──────────┘
+
+    funnel_rate（本文impに対するリンククリック率）が最終的な導線効率で、
+    drop_rate と reply_ctr は「本文が悪いのかリプが悪いのか」を切り分ける。
     """
     if df.empty:
         return df
     df = df.copy()
     imp = df["impressions"].replace(0, pd.NA)
+    reply_imp = df["reply_impressions"].replace(0, pd.NA)
+
     engagements = df[["likes", "reposts", "replies", "bookmarks"]].sum(axis=1)
     df["engagements"] = engagements
     df["eng_rate"] = (engagements / imp * 100).round(2)
+
+    df["funnel_rate"] = (df["link_clicks"] / imp * 100).round(3)
+    df["drop_rate"] = (reply_imp / imp * 100).round(1)
+    df["reply_ctr"] = (df["link_clicks"] / reply_imp * 100).round(2)
+
+    # プロフィール経由は副次的な導線（プロフのリンクを踏む人）。
     df["prof_rate"] = (df["profile_clicks"] / imp * 100).round(3)
-    df["ctr"] = (df["link_clicks"] / df["profile_clicks"].replace(0, pd.NA) * 100).round(1)
     return df
 
 
@@ -89,6 +103,18 @@ def add_record(args):
         print("上書きするなら --force を付けてください。")
         print(dup.to_string(index=False))
         return 1
+
+    # 枠は違うが同じ日に同じ書き出しの投稿がある = 枠を打ち直そうとしている可能性。
+    # そのまま通すと二重計上になるので止める。
+    if args.hook:
+        same_day = df[(df["date"] == args.date) & (df["slot"] != args.slot)]
+        clash = same_day[same_day["hook"].astype(str).str[:20] == args.hook[:20]]
+        if not clash.empty:
+            print(f"同じ日に、同じ書き出しの投稿が別の枠「{clash['slot'].iloc[0]}」で"
+                  "記録されています。")
+            print("枠を打ち直すなら、先に古い行を消してください（二重計上になります）。")
+            print(clash.to_string(index=False))
+            return 1
 
     if not dup.empty:
         df = df.drop(dup.index)
@@ -106,6 +132,7 @@ def add_record(args):
         "replies": args.replies,
         "bookmarks": args.bookmarks,
         "profile_clicks": args.profile_clicks,
+        "reply_impressions": args.reply_impressions,
         "link_clicks": args.link_clicks,
         "followers_delta": args.followers_delta,
         "note": args.note or "",
@@ -121,8 +148,10 @@ def add_record(args):
 
     print(f"記録しました（通算 {len(df)} 本目）")
     print(f"  エンゲージ率 {show(d['eng_rate'].iloc[0], '%')}  "
-          f"プロフクリック率 {show(d['prof_rate'].iloc[0], '%')}  "
           f"フォロー増 {show(row['followers_delta'])}")
+    print(f"  導線: リプ到達 {show(d['drop_rate'].iloc[0], '%')} × "
+          f"リプCTR {show(d['reply_ctr'].iloc[0], '%')} = "
+          f"総合 {show(d['funnel_rate'].iloc[0], '%')}")
     return 0
 
 
@@ -145,12 +174,22 @@ def report(args):
     print(f"  インプレッション   中央値 {stat('impressions', 'median', ',.0f')} / "
           f"最大 {stat('impressions', 'max', ',.0f')}")
     print(f"  エンゲージ率       中央値 {stat('eng_rate', 'median', '.2f', '%')}")
-    print(f"  プロフクリック率   中央値 {stat('prof_rate', 'median', '.3f', '%')}")
     if df["followers_delta"].notna().any():
         print(f"  フォロー増         合計 {df['followers_delta'].sum():,.0f} / "
               f"1本あたり {df['followers_delta'].mean():.1f}")
     else:
         print("  フォロー増         未計測")
+
+    print("\n● 導線（1stリプのアフィリリンク）")
+    print(f"  リプ到達率   中央値 {stat('drop_rate', 'median', '.1f', '%')}"
+          "   ← 本文を見た人のうちリプ欄まで降りた割合")
+    print(f"  リプCTR      中央値 {stat('reply_ctr', 'median', '.2f', '%')}"
+          "   ← リプを見た人のうちリンクを踏んだ割合")
+    print(f"  総合導線率   中央値 {stat('funnel_rate', 'median', '.3f', '%')}"
+          "   ← 本文impに対するクリック。これが本命")
+    if df["link_clicks"].notna().any():
+        print(f"  リンククリック 合計 {df['link_clicks'].sum():,.0f}")
+    print(f"  （参考）プロフクリック率 中央値 {stat('prof_rate', 'median', '.3f', '%')}")
 
     print("\n● 型ごと（サンプル3本以上のみ）")
     grouped = df.groupby("format")
@@ -158,15 +197,15 @@ def report(args):
         v = getattr(series, how)()
         return "—" if pd.isna(v) else format(v, fmt) + suffix
 
-    # プロフクリック率の降順。未計測の型は後ろへ回す。
+    # 総合導線率の降順。未計測の型は後ろへ回す。
     # 文字列に整形したあとで並べ替えると "—" が混ざって順序が壊れるので、
     # 整形前の数値でソートしておく。
-    def prof_key(g):
-        v = g["prof_rate"].median()
+    def funnel_key(g):
+        v = g["funnel_rate"].median()
         return (1, 0.0) if pd.isna(v) else (0, -float(v))
 
     eligible = [(n, g) for n, g in grouped if len(g) >= MIN_SAMPLES_PER_FORMAT]
-    eligible.sort(key=lambda kv: prof_key(kv[1]))
+    eligible.sort(key=lambda kv: funnel_key(kv[1]))
 
     rows = []
     for name, g in eligible:
@@ -175,8 +214,9 @@ def report(args):
             "本数": len(g),
             "imp中央値": cell(g["impressions"], "median", ",.0f"),
             "エンゲ率": cell(g["eng_rate"], "median", ".2f", "%"),
-            "プロフ率": cell(g["prof_rate"], "median", ".3f", "%"),
-            "フォロー/本": cell(g["followers_delta"], "mean", ".1f"),
+            "リプ到達": cell(g["drop_rate"], "median", ".1f", "%"),
+            "総合導線率": cell(g["funnel_rate"], "median", ".3f", "%"),
+            "クリック/本": cell(g["link_clicks"], "mean", ".0f"),
         })
     if rows:
         out = pd.DataFrame(rows)
@@ -188,22 +228,25 @@ def report(args):
             print(f"    {name}: {n}本")
 
     # バズったのに導線に効かなかった投稿。ここが一番の学びになる。
-    if len(df) >= 5:
-        imp_hi = df["impressions"] >= df["impressions"].median()
-        prof_lo = df["prof_rate"] < df["prof_rate"].median()
-        leaky = df[imp_hi & prof_lo]
+    measured = df[df["funnel_rate"].notna()]
+    if len(measured) >= 5:
+        imp_hi = measured["impressions"] >= measured["impressions"].median()
+        fn_lo = measured["funnel_rate"] < measured["funnel_rate"].median()
+        leaky = measured[imp_hi & fn_lo]
         if not leaky.empty:
-            print(f"\n● 伸びたのにプロフィールに来ていない投稿（{len(leaky)}本）")
-            print("  ＝ 内容は刺さったが「この人を知りたい」に繋がっていない。")
+            print(f"\n● 伸びたのに導線が抜けた投稿（{len(leaky)}本）")
+            print("  リプ到達が低ければ本文とリプの断絶、")
+            print("  リプCTRが低ければ橋渡しの文の問題。")
             for _, r in leaky.sort_values("impressions", ascending=False).head(5).iterrows():
                 print(f"    {r['date']} [{r['format']}] imp {r['impressions']:,.0f} / "
-                      f"プロフ率 {r['prof_rate']:.3f}%")
+                      f"リプ到達 {r['drop_rate']}% / リプCTR {r['reply_ctr']}% / "
+                      f"総合 {r['funnel_rate']}%")
                 print(f"      {str(r['hook'])[:60]}")
 
     n = args.last
     print(f"\n● 直近 {n} 本")
-    cols = ["date", "slot", "format", "impressions", "eng_rate", "prof_rate",
-            "link_clicks", "followers_delta"]
+    cols = ["date", "slot", "format", "impressions", "eng_rate",
+            "drop_rate", "reply_ctr", "funnel_rate", "followers_delta"]
     print(df.tail(n)[cols].to_string(index=False))
     return 0
 
