@@ -6,10 +6,12 @@ X API を使わない運用なので、数字は X アナリティクスのス�
 
   # 1件記録する
   python x/x_review.py --add --date 2026-08-11 --slot 朝 \\
-      --format 暴露 --episode E003 \\
-      --hook "上司に『君のためを思って』と言われた日の話" \\
-      --impressions 42000 --likes 380 --reposts 41 --replies 26 \\
-      --bookmarks 55 --profile-clicks 210 --link-clicks 34 --followers-delta 18
+      --format 型1 --episode E003 \\
+      --hook "新卒の頃、報連相をすっぽかして上司に怒られた" \\
+      --impressions 420000 --likes 3800 --reposts 410 --replies 26 \\
+      --bookmarks 55 --profile-clicks 2100 --link-clicks 340 --followers-delta 18
+
+  未指定の数値は 0 ではなく「未計測」として扱う（率の集計から外れる）。
 
   # 集計レポートを出す
   python x/x_review.py
@@ -113,10 +115,14 @@ def add_record(args):
     df.to_csv(POSTS_CSV, index=False)
 
     d = derive(pd.DataFrame([row]))
+
+    def show(v, suffix=""):
+        return "未計測" if pd.isna(v) else f"{v}{suffix}"
+
     print(f"記録しました（通算 {len(df)} 本目）")
-    print(f"  エンゲージ率 {d['eng_rate'].iloc[0]}%  "
-          f"プロフクリック率 {d['prof_rate'].iloc[0]}%  "
-          f"フォロー増 {row['followers_delta']}")
+    print(f"  エンゲージ率 {show(d['eng_rate'].iloc[0], '%')}  "
+          f"プロフクリック率 {show(d['prof_rate'].iloc[0], '%')}  "
+          f"フォロー増 {show(row['followers_delta'])}")
     return 0
 
 
@@ -130,30 +136,50 @@ def report(args):
 
     print(f"=== 通算 {len(df)} 本（{df['date'].min()} 〜 {df['date'].max()}）===\n")
 
+    def stat(col, how, fmt, suffix=""):
+        """全件が未計測なら nan を出さずにそう言う。"""
+        v = getattr(df[col], how)()
+        return "未計測" if pd.isna(v) else format(v, fmt) + suffix
+
     print("● 全体")
-    print(f"  インプレッション   中央値 {df['impressions'].median():,.0f} / "
-          f"最大 {df['impressions'].max():,.0f}")
-    print(f"  エンゲージ率       中央値 {df['eng_rate'].median():.2f}%")
-    print(f"  プロフクリック率   中央値 {df['prof_rate'].median():.3f}%")
-    print(f"  フォロー増         合計 {df['followers_delta'].sum():,.0f} / "
-          f"1本あたり {df['followers_delta'].mean():.1f}")
+    print(f"  インプレッション   中央値 {stat('impressions', 'median', ',.0f')} / "
+          f"最大 {stat('impressions', 'max', ',.0f')}")
+    print(f"  エンゲージ率       中央値 {stat('eng_rate', 'median', '.2f', '%')}")
+    print(f"  プロフクリック率   中央値 {stat('prof_rate', 'median', '.3f', '%')}")
+    if df["followers_delta"].notna().any():
+        print(f"  フォロー増         合計 {df['followers_delta'].sum():,.0f} / "
+              f"1本あたり {df['followers_delta'].mean():.1f}")
+    else:
+        print("  フォロー増         未計測")
 
     print("\n● 型ごと（サンプル3本以上のみ）")
     grouped = df.groupby("format")
+    def cell(series, how, fmt, suffix=""):
+        v = getattr(series, how)()
+        return "—" if pd.isna(v) else format(v, fmt) + suffix
+
+    # プロフクリック率の降順。未計測の型は後ろへ回す。
+    # 文字列に整形したあとで並べ替えると "—" が混ざって順序が壊れるので、
+    # 整形前の数値でソートしておく。
+    def prof_key(g):
+        v = g["prof_rate"].median()
+        return (1, 0.0) if pd.isna(v) else (0, -float(v))
+
+    eligible = [(n, g) for n, g in grouped if len(g) >= MIN_SAMPLES_PER_FORMAT]
+    eligible.sort(key=lambda kv: prof_key(kv[1]))
+
     rows = []
-    for name, g in grouped:
-        if len(g) < MIN_SAMPLES_PER_FORMAT:
-            continue
+    for name, g in eligible:
         rows.append({
             "型": name,
             "本数": len(g),
-            "imp中央値": f"{g['impressions'].median():,.0f}",
-            "エンゲ率": f"{g['eng_rate'].median():.2f}%",
-            "プロフ率": f"{g['prof_rate'].median():.3f}%",
-            "フォロー/本": f"{g['followers_delta'].mean():.1f}",
+            "imp中央値": cell(g["impressions"], "median", ",.0f"),
+            "エンゲ率": cell(g["eng_rate"], "median", ".2f", "%"),
+            "プロフ率": cell(g["prof_rate"], "median", ".3f", "%"),
+            "フォロー/本": cell(g["followers_delta"], "mean", ".1f"),
         })
     if rows:
-        out = pd.DataFrame(rows).sort_values("プロフ率", ascending=False)
+        out = pd.DataFrame(rows)
         print(out.to_string(index=False))
     else:
         thin = grouped.size().sort_values(ascending=False)
@@ -197,8 +223,10 @@ def main():
     p.add_argument("--url")
     p.add_argument("--note")
 
+    # 未指定は 0 ではなく「未計測」。過去投稿の遡り入力では、プロフィールアクセスや
+    # ブックマークが画面に出ておらず、埋めようがない。0 を入れると率が歪む。
     for col in NUMERIC:
-        p.add_argument(f"--{col.replace('_', '-')}", type=int, default=0)
+        p.add_argument(f"--{col.replace('_', '-')}", type=int, default=None)
 
     args = p.parse_args()
 
@@ -206,8 +234,13 @@ def main():
         missing = [f for f in ("date", "slot", "format") if not getattr(args, f)]
         if missing:
             p.error("--add には " + " / ".join("--" + m for m in missing) + " が要ります")
-        if args.impressions == 0:
-            p.error("--impressions が 0 です。アナリティクスの数字を渡してください")
+        if args.impressions is None:
+            print("※ --impressions が未指定です。率の集計からこの投稿は外れます。",
+                  file=sys.stderr)
+        if args.profile_clicks is None:
+            print("※ --profile-clicks が未指定です。第一指標が出せません。"
+                  "アナリティクスの「プロフィールへのアクセス」を渡してください。",
+                  file=sys.stderr)
         return add_record(args)
 
     return report(args)

@@ -32,12 +32,17 @@ X アナリティクスのスクショ、または数値の口頭報告。**24�
 
 ```
 python x/x_review.py --add --date 2026-08-11 --slot 朝 \
-  --format 型3 --episode E007 --hook "冒頭1行をそのまま" \
-  --impressions 42000 --likes 380 --reposts 41 --replies 26 \
-  --bookmarks 55 --profile-clicks 210 --link-clicks 34 --followers-delta 18
+  --format 型1 --episode A007 --hook "冒頭1行をそのまま" \
+  --impressions 420000 --likes 3800 --reposts 410 --replies 26 \
+  --bookmarks 55 --profile-clicks 2100 --link-clicks 340 --followers-delta 18
 ```
 
 同じ日・同じ枠が既にあれば追記しません。上書きするなら `--force`。
+
+**`--format` は正直に付けてください。** 型1のつもりで書いても、
+出来上がりに失敗のドラマが入っていなければ、それは `型1崩れ` です
+（実測で40倍の差がある別物なので、混ぜると型1の評価が壊れます）。
+同様に、型3で箇条書きが「姿勢」になっていたら `型3-姿勢` と書き分けてください。
 
 ### 2. 集計を見る
 
