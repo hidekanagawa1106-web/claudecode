@@ -23,6 +23,7 @@ affiliateId を付けてリクエストすると、レスポンスの affiliateU
     python parenting/rakuten_affiliate.py --check
 """
 import argparse
+import json
 import os
 import re
 import sys
@@ -38,12 +39,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "products.csv")
 OUT = os.path.join(HERE, "products_resolved.csv")
 CANDIDATES = os.path.join(HERE, "out", "candidates.md")
+URL_CACHE = os.path.join(HERE, ".url_cache.json")
 
 # 同じURLに短時間で叩き込むと一定時間返らなくなる、と楽天のドキュメントにある。
 # 商品数はせいぜい数十なので、1秒空けておけば足りる。
 INTERVAL = 1.0
 
 ITEM_URL = re.compile(r"item\.rakuten\.co\.jp/([^/]+)/([^/?#]+)")
+# 楽天アフィリエイトが発行する短縮リンクと中間リンク。商品ページではないので展開が要る。
+SHORT_HOSTS = ("a.r10.to", "hb.afl.rakuten.co.jp", "af.moshimo.com")
 
 
 HELP = {
@@ -64,16 +68,49 @@ def credentials():
     return vals["RAKUTEN_APP_ID"], vals["RAKUTEN_AFFILIATE_ID"], vals["RAKUTEN_ACCESS_KEY"]
 
 
-def to_item_code(row):
-    """rakuten_url または item_code から 店舗コード:商品コード を作る。無ければ None。"""
+def load_cache():
+    if os.path.exists(URL_CACHE):
+        try:
+            return json.load(open(URL_CACHE, encoding="utf-8"))
+        except ValueError:
+            pass
+    return {}
+
+
+def save_cache(cache):
+    json.dump(cache, open(URL_CACHE, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+
+
+def expand(url, cache):
+    """短縮リンクをたどって商品ページURLにする。短縮先は変わらないのでキャッシュする。"""
+    if url in cache:
+        return cache[url]
+    try:
+        final = requests.get(url, allow_redirects=True, timeout=25).url
+    except requests.RequestException:
+        return ""
+    cache[url] = final
+    return final
+
+
+def to_item_code(row, cache):
+    """rakuten_url / item_code から 店舗コード:商品コード を作る。無ければ None。
+
+    アフィリエイトの中間リンク（hb.afl...）は pc= に商品URLを持っているので、
+    URLデコードするだけで取れる。a.r10.to の短縮リンクだけは実際にたどる。
+    """
     code = str(row.get("item_code") or "").strip()
     if code and code.lower() != "nan":
         return code
+
     url = str(row.get("rakuten_url") or "").strip()
+    if not url:
+        return None
+
     m = ITEM_URL.search(urllib.parse.unquote(url))
-    if m:
-        return f"{m.group(1)}:{m.group(2)}"
-    return None
+    if not m and any(h in url for h in SHORT_HOSTS):
+        m = ITEM_URL.search(urllib.parse.unquote(expand(url, cache)))
+    return f"{m.group(1)}:{m.group(2)}" if m else None
 
 
 def search(params, app_id, affiliate_id, access_key):
@@ -90,9 +127,9 @@ def search(params, app_id, affiliate_id, access_key):
     return items, None
 
 
-def resolve(row, app_id, affiliate_id, access_key):
+def resolve(row, app_id, affiliate_id, access_key, cache):
     """1商品を解決して (結果dict, 候補list) を返す。"""
-    item_code = to_item_code(row)
+    item_code = to_item_code(row, cache)
     if item_code:
         items, err = search({"itemCode": item_code, "hits": 1}, app_id, affiliate_id, access_key)
         status = "ok"
@@ -124,6 +161,7 @@ def resolve(row, app_id, affiliate_id, access_key):
         "review_avg": it.get("reviewAverage", ""),
         "review_count": it.get("reviewCount", ""),
         "image_url": (it.get("mediumImageUrls") or [{}])[0].get("imageUrl", ""),
+        "affiliate_rate": it.get("affiliateRate", ""),
         "affiliate_url": it.get("affiliateUrl", ""),
         "item_url": it.get("itemUrl", ""),
         "item_code": it.get("itemCode", ""),
@@ -200,19 +238,21 @@ def main():
     if args.check and os.path.exists(OUT):
         before = pd.read_csv(OUT, dtype=str)
 
+    cache = load_cache()
     rows, cand_rows = [], []
     for i, (_, row) in enumerate(src.iterrows()):
         if i:
             time.sleep(INTERVAL)
-        res, cands = resolve(row, app_id, affiliate_id, access_key)
+        res, cands = resolve(row, app_id, affiliate_id, access_key, cache)
         print(f"{row['id']:>4} {row['name'][:24]:24} {res['status']}")
         if res["status"] == "guess":
             cand_rows.append((row["id"], row["name"], res, cands))
         rows.append({**row.to_dict(), **res})
 
+    save_cache(cache)
     after = pd.DataFrame(rows)
     cols = ["id", "section", "name", "timing", "must", "comment", "status",
-            "matched_name", "price", "shop", "review_avg", "review_count",
+            "matched_name", "price", "affiliate_rate", "shop", "review_avg", "review_count",
             "image_url", "affiliate_url", "item_url", "item_code", "note"]
     # 列は常に同じ並び・同じ数で出す。全件エラーの回でも build_note.py が読めるように。
     after = after.reindex(columns=cols)
