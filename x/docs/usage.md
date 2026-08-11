@@ -113,6 +113,8 @@ python x/x_review.py --add ...    # 1件記録（通常は /x-review 経由）
 | `swipe.csv` | 競合の勝ち投稿 | `/x-scout` |
 | `episodes.md` | 実体験。型1の燃料 | `/x-mine` |
 | `posts.csv` | 全投稿の実績台帳（過去11本を投入済み） | `x_review.py` |
+| `drafts/YYYY-MM-DD.md` | その日の下書き（採用・予備とも） | `/x-draft` |
+| `docs/api-option.md` | X API を使う場合の調査（未導入） | 手動 |
 
 ## 過去11本から確定していること
 
