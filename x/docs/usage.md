@@ -84,6 +84,7 @@
 ```
 /x-trend    朝の下書き前。時事の在庫が3本を切っていたら
 /x-scout    伸びていた競合投稿を5本ほど持ち込む（週1）
+            探し方は accounts.md の min_faves: クエリ
 /x-mine     型1の在庫が切れたら。他の型では不要
 ```
 
@@ -108,6 +109,7 @@ python x/x_review.py --add ...    # 1件記録（通常は /x-review 経由）
 | `docs/voice.md` | 文体規定。過去11本から抽出済み | `/x-mine`（四半期） |
 | `docs/funnel.md` | 1stリプの橋渡し。型ごとの入口 | 手動 |
 | `topics.md` | 時事ネタの在庫（賞味期限つき） | `/x-trend` |
+| `accounts.md` | 監視対象アカウントと検索クエリ | `/x-scout` |
 | `swipe.csv` | 競合の勝ち投稿 | `/x-scout` |
 | `episodes.md` | 実体験。型1の燃料 | `/x-mine` |
 | `posts.csv` | 全投稿の実績台帳（過去11本を投入済み） | `x_review.py` |
