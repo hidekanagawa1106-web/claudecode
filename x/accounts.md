@@ -19,6 +19,44 @@
 
 ---
 
+## プロフィールURL一覧（そのまま開けます）
+
+**A: 型が一致（最優先）**
+
+- https://x.com/sayu5632j —— さゆり｜元人事の裏垢 ★最重要
+- https://x.com/mei3_biz —— めい｜満足度95%の転職相談
+- https://x.com/ketta_32 —— けった
+- https://x.com/minami_tensyoku —— みなみ
+- https://x.com/KmtRow —— 武拓矢｜SQiL Career Agent
+
+**B: テーマが一致**
+
+- https://x.com/zikilluu —— じきるう（型1の構造が一致）
+- https://x.com/kei__tenshoku —— けい｜20代キャリア相談（アンダースコア2つ）
+- https://x.com/urahr_hongkong —— 「最初の上司が誰か」＝橋渡しと同じ主張
+- https://x.com/oinu_koinu_13 —— おいぬさん｜新入社員のミカタ
+- https://x.com/career_koumei —— 仕事のできる人の観察
+
+**C: 同業・元リクルート**
+
+- https://x.com/tenshokutakada —— 高田祥
+- https://x.com/miyaken_desu —— みやけん。
+- https://x.com/taocareer —— TAO
+- https://x.com/mon_hr_tokyo —— モンちゃん
+- https://x.com/lia_group_ume —— 梅本
+- https://x.com/masa_career —— masa
+- https://x.com/yutty_jobchange —— ドゥラ
+
+**D: 企業公式（参考程度）**
+
+- https://x.com/recruit_agent
+- https://x.com/rikunabi_x
+- https://x.com/career_nikkei
+- https://x.com/doda_persol
+- https://x.com/onecareerjp
+
+---
+
 ## A: 型が一致している（最優先）
 
 型1（上司の一言）と型2（面接官の暴露）を実際にやっているアカウント。
