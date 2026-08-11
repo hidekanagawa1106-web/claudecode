@@ -7,3 +7,12 @@ __pycache__/
 # JPX決算発表予定日のダウンロードキャッシュ（毎営業日更新される）
 kessan_schedule.xlsx
 kessan_schedule.xlsx.date
+
+# 育休ノート。楽天の認証情報は環境変数で渡す。ここに置くファイルも念のため除外。
+parenting/.env
+
+# 出力のうち、作り直せるものだけ除外する。
+# note_draft.md は Claude が本文を書き込むので作り直せない。追跡する。
+# products_resolved.csv は --check の比較元になるので追跡する。
+parenting/out/candidates.md
+parenting/out/links.md
