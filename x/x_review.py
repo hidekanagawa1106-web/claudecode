@@ -45,6 +45,11 @@ MIN_SAMPLES_PER_FORMAT = 3
 # 文字コード順に並べると 夜→朝 になってしまうので、投稿順を明示する。
 SLOT_ORDER = {"朝": 0, "昼": 1, "夜": 2}
 
+# 2025年11月を最後に本格運用が途切れ、2026年8月に再開した。
+# 配信量そのものが別物なので、この日付以降は「再起動期間」として分けて見る。
+RESTART_FROM = "2026-01-01"
+RESTART_WINDOW = 5
+
 
 def sort_by_time(df):
     key = df["slot"].map(SLOT_ORDER).fillna(99)
@@ -226,6 +231,29 @@ def report(args):
         print(f"  まだどの型も {MIN_SAMPLES_PER_FORMAT} 本に届いていません。現在の内訳:")
         for name, n in thin.items():
             print(f"    {name}: {n}本")
+
+    # 再起動期間の推移。型の良し悪しではなく、配信が戻っているかを見る。
+    restart = df[df["date"] >= RESTART_FROM]
+    if not restart.empty:
+        print(f"\n● 再起動トラッキング（{RESTART_FROM} 以降 {len(restart)}本）")
+        print("  型の評価には使いません。配信が戻っているかだけを見ます。")
+        cols = ["date", "slot", "format", "impressions", "eng_rate"]
+        print(restart[cols].to_string(index=False))
+
+        n = RESTART_WINDOW
+        if len(restart) >= n * 2:
+            recent = restart["impressions"].tail(n).median()
+            prev = restart["impressions"].tail(n * 2).head(n).median()
+            print(f"\n  直近{n}本の中央値 {recent:,.0f} / その前の{n}本 {prev:,.0f}")
+            if pd.notna(recent) and pd.notna(prev) and prev > 0:
+                print(f"  → {recent / prev:.1f}倍")
+        else:
+            print(f"\n  推移の比較には{n * 2}本必要です（あと{n * 2 - len(restart)}本）。")
+
+        print("\n  読み方:")
+        print("    エンゲージ率を保ったまま imp が上がる → 配信が戻ってきている")
+        print("    imp が上がらない                     → 初速がまだ発生していない")
+        print("    imp は上がるがエンゲージ率が落ちる    → 配信先が変わった。別の問題")
 
     # バズったのに導線に効かなかった投稿。ここが一番の学びになる。
     measured = df[df["funnel_rate"].notna()]
