@@ -69,7 +69,11 @@ def load():
     # 「@」で始まるものは他人への返信。自分のタイムラインに出る投稿とは
     # 配信のされ方がまったく違うので、混ぜて平均を取ると平常値が壊れる。
     df["is_reply"] = df["text"].astype(str).str.startswith("@")
-    df["has_link"] = df["url"] > 0
+
+    # 導線ポストの判定は**本文にURLがあるか**で行う。URLクリック数で判定すると、
+    # 長文が省略されたときに付く t.co を踏んだぶんが数クリック入るせいで、
+    # リンクを貼っていない本編（1272万impの型4など）まで導線扱いになる。
+    df["has_link"] = df["text"].astype(str).str.contains("http", na=False)
     return df.sort_values("jst"), empty
 
 
