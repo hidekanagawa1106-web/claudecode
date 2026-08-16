@@ -170,6 +170,9 @@ python x/x_review.py --add ...    # 1件記録（通常は /x-review 経由）
 python x/analytics.py             # 公式エクスポートのベースライン
 python x/analytics.py --month 2025-12
 python x/analytics.py --formats   # 型の自動分類を全件表示
+
+python x/x_metrics.py --days 3    # X APIで実績を自動取得（要セットアップ）
+python x/x_metrics.py --dry-run   # 書き込まずに確認
 ```
 
 未指定の数値は 0 ではなく「未計測」として扱われ、率の集計から外れます。
@@ -209,6 +212,8 @@ URLクリック数も入っているので、導線の実測がそのまま取�
 | `posts.csv` | レビューを通した投稿の台帳 | `x_review.py` |
 | `data/raw/*.csv` | **Xの公式エクスポート（全投稿）** | 手動で置く |
 | `analytics.py` | エクスポートから平常値と導線を出す | — |
+| `x_metrics.py` | **X APIで実績を自動取得**（1日1回・月$1.5） | cron |
+| `docs/api-setup.md` | **APIのセットアップ手順** | 手動 |
 | `stock.md` | **下書きの在庫。日付は付けない** | `/x-draft` |
 | `docs/api-option.md` | X API を使う場合の調査（未導入） | 手動 |
 

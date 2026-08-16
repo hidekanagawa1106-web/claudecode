@@ -7,3 +7,8 @@ __pycache__/
 # JPX決算発表予定日のダウンロードキャッシュ（毎営業日更新される）
 kessan_schedule.xlsx
 kessan_schedule.xlsx.date
+
+# X APIのキー
+.env
+x/data/.user_id
+x/data/metrics.log
