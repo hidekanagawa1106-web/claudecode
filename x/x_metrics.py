@@ -23,14 +23,25 @@ Access Token を発行するだけなので、ブラウザのリダイレクト�
 |---|---|
 | 通常の投稿 | **取る** |
 | 引用リポスト | **取る**（通常の投稿と同じ扱い） |
-| 自分の投稿への自分のリプ（＝導線リプ） | **取る**（本文に紐づけて記録） |
-| 他アカウントへの交流リプ | **捨てる**（APIが返してくるので課金は発生します） |
-| リポスト | **取らない**（API側で除外） |
+| 自分の投稿への自分のリプ（＝導線リプ） | **取らない**（下記） |
+| 他アカウントへの交流リプ | **取らない** |
+| リポスト | **取らない** |
+
+**返信は全部API側で除外しています**（`exclude=retweets,replies`）。
+交流リプが1日50件あり、捨てるためだけに月$7.5払う形になっていたためです
+（2026-08-15にHideさんが判断）。
+
+そのため `reply_impressions` と `link_clicks` は空のままになります。
+**導線の実測は月次のエクスポートCSV（`analytics.py`）で拾ってください。**
+あちらには全投稿の `URLクリック数` が入っているので、日次で取らなくても
+ファネルは測れます（19ケースの分析はエクスポートから出したものです）。
+
+一時的に取りたいときは `--with-replies` を付けます。
 
 注意:
 - **non_public_metrics は直近30日の投稿にしか付きません。** 古い投稿は
   公開指標だけになるので、月次のエクスポートCSV（`analytics.py`）と併用します
-- 読み取りは1件 $0.005。1日3〜13件なので**月$0.5〜2**
+- 読み取りは1件 $0.005。返信を除外して1日2〜6件なので**月$0.3〜1**
 """
 
 import argparse
@@ -110,21 +121,27 @@ def window(offset=None, days=None):
     return start.astimezone(dt.timezone.utc), (start + dt.timedelta(days=1)).astimezone(dt.timezone.utc), target
 
 
-def fetch(s, uid, start, end):
+def fetch(s, uid, start, end, with_replies=False):
     """指定期間の自分の投稿を取る。
 
-    exclude=retweets でリポストだけ除外する。**引用リポストは除外されません**
-    （通常の投稿として返ってくる）ので、狙いどおり含まれます。
+    **既定で返信を全部除外します**（`exclude=retweets,replies`）。
+    APIには「自分への返信だけ残す」指定が無く、残すと他アカウントへの
+    交流リプまで取ってしまいます。実測で1日50件あり、捨てるためだけに
+    月$7.5かかっていました。
 
-    replies も除外できますが、それをすると**自分の導線リプまで消える**ので
-    ここでは除外せず、あとで手元で振り分けます。
+    副作用として自分の導線リプも取れなくなるので、`link_clicks` と
+    `reply_impressions` は空になります。**導線は月次のエクスポート
+    （analytics.py）で測る**方針です。
+
+    **引用リポストは除外されません。** 引用は referenced_tweets の type が
+    quoted であって replied_to ではないため、通常の投稿として返ってきます。
     """
     data = get(
         s, f"/users/{uid}/tweets",
         max_results=100,
         start_time=start.strftime("%Y-%m-%dT%H:%M:%SZ"),
         end_time=end.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        exclude="retweets",
+        exclude="retweets" if with_replies else "retweets,replies",
         **{
             "tweet.fields": "created_at,text,public_metrics,non_public_metrics,referenced_tweets",
         },
@@ -238,6 +255,8 @@ def main():
     ap.add_argument("--days", type=int,
                     help="直近N日ぶんをまとめて取る（取りこぼしを埋めるとき用）")
     ap.add_argument("--force", action="store_true", help="取得済みでも取り直す")
+    ap.add_argument("--with-replies", action="store_true",
+                    help="返信も取る（導線リプの数字が要るとき。交流リプも来るので割高）")
     ap.add_argument("--dry-run", action="store_true", help="posts.csv に書かずに表示だけ")
     args = ap.parse_args()
 
@@ -248,7 +267,7 @@ def main():
 
     label = f"{target}（JSTの1日ぶん）" if target else f"直近{args.days}日"
     s = session()
-    tweets = fetch(s, my_id(s), start, end)
+    tweets = fetch(s, my_id(s), start, end, args.with_replies)
     mains, replies, social = split(tweets)
     if not mains:
         print(f"{label}に自分の投稿はありませんでした（取得{len(tweets)}件）")
@@ -257,8 +276,14 @@ def main():
     rows = [to_row(t, replies.get(t["id"])) for t in sorted(mains, key=lambda t: t["jst"])]
 
     print(f"対象: {label}")
-    print(f"取得 {len(tweets)}件（本文{len(mains)} / 導線リプ{len(replies)} / "
-          f"交流リプ{len(social)}＝捨てる）  概算コスト ${len(tweets) * 0.005:.3f}\n")
+    detail = f"本文{len(mains)}"
+    if args.with_replies:
+        detail += f" / 導線リプ{len(replies)} / 交流リプ{len(social)}＝捨てる"
+    print(f"取得 {len(tweets)}件（{detail}）  概算コスト ${len(tweets) * 0.005:.3f}")
+    if not args.with_replies:
+        print("返信はAPI側で除外しています。導線の数字は月次エクスポートで測ります\n")
+    else:
+        print()
     for r in rows:
         ri = r["reply_impressions"]
         print("=" * 72)
