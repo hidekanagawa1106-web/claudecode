@@ -58,6 +58,7 @@ from x_review import COLUMNS, POSTS_CSV, SLOT_ORDER
 
 API = "https://api.x.com/2"
 ME_CACHE = os.path.join(os.path.dirname(__file__), "data", ".user_id")
+FOLLOWERS_CSV = os.path.join(os.path.dirname(__file__), "data", "followers.csv")
 
 ENV = ("X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET")
 
@@ -197,6 +198,29 @@ def slot_of(jst):
     return "朝" if h < 11 else ("昼" if h < 17 else "夜")
 
 
+def track_followers(s, uid):
+    """フォロワー数を日次で記録する（$0.01/回）。
+
+    引用リポストの狙いは**引用元のアカウントに拾ってもらって、相手の
+    フォロワーに届くこと**です。インプレッションでは測れないので、
+    フォロワーの増え方を直接見ます。
+    """
+    try:
+        d = get(s, f"/users/{uid}", **{"user.fields": "public_metrics"})["data"]
+        n = d["public_metrics"]["followers_count"]
+    except SystemExit:
+        return None  # ここで落ちても本体は続ける
+
+    today = dt.datetime.now(JST).strftime("%Y-%m-%d")
+    os.makedirs(os.path.dirname(FOLLOWERS_CSV), exist_ok=True)
+    df = pd.read_csv(FOLLOWERS_CSV) if os.path.exists(FOLLOWERS_CSV) else pd.DataFrame(columns=["date", "followers"])
+    prev = df["followers"].iloc[-1] if len(df) else None
+    df = df[df["date"].astype(str) != today]
+    df = pd.concat([df, pd.DataFrame([{"date": today, "followers": n}])], ignore_index=True)
+    df.sort_values("date").to_csv(FOLLOWERS_CSV, index=False)
+    return n, (None if prev is None else int(n) - int(prev))
+
+
 def is_quote(t):
     """引用リポストか。referenced_tweets の type が quoted なら確実に分かる。"""
     return any(r["type"] == "quoted" for r in t.get("referenced_tweets") or [])
@@ -266,6 +290,8 @@ def main():
     ap.add_argument("--with-replies", action="store_true",
                     help="返信も取る（導線リプの数字が要るとき。交流リプも来るので割高）")
     ap.add_argument("--dry-run", action="store_true", help="posts.csv に書かずに表示だけ")
+    ap.add_argument("--no-followers", action="store_true",
+                    help="フォロワー数を記録しない（$0.01の節約）")
     args = ap.parse_args()
 
     start, end, target = window(args.offset, args.days)
@@ -304,11 +330,24 @@ def main():
         print(r["text"])
         print()
 
+    # 引用RTは imp ではなく「リポストされたか」で見る（詳細は formats.md）
+    quotes = [r for r in rows if r["format"] == "引用RT"]
+    if quotes:
+        picked = sum(1 for r in quotes if (r["reposts"] or 0) >= 1)
+        print(f"引用リポスト {len(quotes)}本中 {picked}本がリポストされています"
+              f"（引用元に拾われたかの代理指標。**impではなくここを見ます**）")
+
     if args.dry_run:
         print("\n--dry-run のため posts.csv は更新していません")
         return
     a, u = upsert(rows)
     print(f"\nposts.csv: 新規{a}件 / 更新{u}件")
+    if not args.no_followers:
+        got = track_followers(s, my_id(s))
+        if got:
+            n, delta = got
+            d = "（前回比 不明）" if delta is None else f"（前回比 {delta:+d}）"
+            print(f"フォロワー {n:,} {d}  → x/data/followers.csv")
     print("型（format）は自動分類なので、狙いと違っていれば手で直してください")
 
 
