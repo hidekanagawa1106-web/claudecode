@@ -206,40 +206,51 @@ Claude Code の作業コンテナは毎回作り直されるので、そこに c
 
 | 置き場所 | 向き |
 |---|---|
-| **GitHub Actions** | **推奨。** 無料・常時稼働・キーはSecrets |
+| **GitHub Actions** | **ここでキーを使う。** 無料・常時稼働・Secretsは暗号化される |
 | ご自身のMac | `crontab -e` で `0 6 * * *`。Macが起動している必要あり |
-| **Claude Code の Routine** | **取得だけでなく分析（winners.md 更新）まで続けられる。下記** |
+| **Claude Code の Routine** | **分析だけ担当。キーは持たせない**（下記） |
 
-## Claude Code の Routine で回す場合
+## ⚠ Claude Code の環境変数にキーを置かないこと
 
-**GitHub Actions との違いは「分析まで続けられる」ことです。** Actionsは
-`posts.csv` を更新して終わりですが、Routineなら集計して `winners.md` まで
-更新できます。
+一度「Routineに一本化してGitHubは不要」と書きましたが、**誤りでした。**
+公式ドキュメントに明記されています。
 
-### 環境変数を登録する
+> Anyone who uses the environment can read the values, and cloud environments
+> have no dedicated secrets store, so **don't add API keys or other credentials**.
+> — [Configure cloud environments](https://code.claude.com/docs/en/cloud-environments)
 
-Claude Code の**環境設定**で、GitHub Secrets と同じ4つ（＋任意で `X_USER_ID`）を
-環境変数として登録してください。**セッションのコンテナは毎回作り直される**ので、
-`.env` をリポジトリに置くことはできません（置いてもgitignoreされます）。
+Claude Code のクラウド環境変数は**シークレットストアではありません。**
+平文で保持され、セッション内から読めます。Pro/Maxのセッション共有には
+**Public** の選択肢があるため、共有した瞬間に外へ出る経路があります。
+
+**キーは GitHub Secrets に置いてください。** 暗号化され、ログ出力時も
+自動でマスクされます。
+
+## 役割分担
+
+キーを持つ処理と、分析する処理を分けます。
+
+```
+GitHub Actions（キーを持つ）
+  毎朝6:00 → x_metrics.py で取得 → posts.csv をコミット
+        ↓
+Claude Code Routine（キーを持たない）
+  毎朝6:30 → posts.csv を読んで集計 → winners.md を更新
+```
+
+**Routine 側はAPIキーに触れません。** コミット済みの `posts.csv` を読むだけです。
 
 ### Routine を作る
 
 | 項目 | 値 |
 |---|---|
-| 名前 | X実績の記録と振り返り（毎朝6:00 JST） |
-| cron | `0 21 * * *` （JST 6:00 = UTC 21:00） |
+| 名前 | X実績の振り返り（毎朝6:30 JST） |
+| cron | `30 21 * * *` （JST 6:30 = UTC 21:30） |
 | 発火モード | 毎回あたらしいセッションを作る |
 | プロンプト | **`x/docs/routine-metrics.txt` の全文** |
 
-**cronはUTCで評価されます。** JST 6:00 は前日の 21:00 UTC なので `0 21 * * *`。
-毎日実行なので曜日をずらす必要はありません（曜日指定する場合は1つ前へずらす）。
-
-### どちらか一方にしてください
-
-**両方動かすと、同じ日ぶんを2回取りに行きます。** 実際には `posts.csv` に
-行があればAPIを呼ばないので二重課金は起きませんが、実行が衝突して
-コミットが競合します。Routineを使うなら、Actionsのスケジュールは止めてください
-（ワークフローの `schedule:` を消すか、Actionsタブから Disable workflow）。
+**Actionsの30分後に置いてください。** 取得が終わってコミットされてから
+読み始めないと、前日ぶんの `posts.csv` を見ることになります。
 
 ## 動かなかったときは
 

@@ -1,14 +1,18 @@
 name: X実績の自動取得
 
-# 3日前の1日ぶんの実績を取って posts.csv に反映する。
+# 毎朝6:00 JST（＝21:00 UTC）に、3日前の1日ぶんの実績を取って posts.csv に反映する。
+# 各投稿を72時間後に一度だけ取るので、同じ投稿に二重課金しない。
 #
-# **定期実行は Claude Code の Routine 側に置いています**（そちらは取得だけでなく
-# winners.md の更新まで続けられるため）。ここは手動実行だけを残した予備で、
-# schedule を意図的に外してあります。二重に動かすとコミットが競合します。
+# **APIキーを持つのはここだけ。** Claude Code のクラウド環境変数は
+# シークレットストアではなく（公式ドキュメント: "cloud environments have no
+# dedicated secrets store, so don't add API keys or other credentials"）、
+# セッション内から平文で読めてしまうため、キーは GitHub Secrets に置く。
 #
-# 使うのは、Routine が動かないときの切り分けか、過去ぶんの取りこぼしを
-# 埋めるときだけ。使うなら Secrets の登録が別途必要です。
+# 分析（winners.md の更新）は Claude Code の Routine 側で、コミット済みの
+# posts.csv を読んで行う。あちらはキーに触れない。
 on:
+  schedule:
+    - cron: "0 21 * * *"
   workflow_dispatch:
 
 # posts.csv をコミットして戻すために書き込み権限が要る
