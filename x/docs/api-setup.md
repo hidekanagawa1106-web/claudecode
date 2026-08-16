@@ -165,13 +165,11 @@ python x/x_metrics.py --offset 5    # 5日前の1日ぶん
 python x/x_metrics.py --force       # 取得済みでも取り直す
 ```
 
-## 7. GitHub Actions で毎日走らせる（推奨）
+## 7. GitHub Actions（予備・手動のみ）
 
-**このリポジトリに `.github/workflows/x-metrics.yml` を用意済みです。**
-毎朝 6:00 JST に走って、`posts.csv` を更新してコミットまでします。
-
-Claude Code の作業コンテナは毎回作り直されるので、そこに cron を仕掛けても
-翌日には消えます。**GitHub Actions なら無料で、キーも安全に保管できます。**
+**定期実行は下の Routine 側です。** ここは予備として手動実行だけ残してあります
+（Routineが動かないときの切り分け、過去ぶんの取りこぼし埋め）。
+使う場合だけ Secrets の登録が要ります。
 
 ### Secrets を4つ登録する
 
@@ -206,51 +204,66 @@ Claude Code の作業コンテナは毎回作り直されるので、そこに c
 
 | 置き場所 | 向き |
 |---|---|
-| **GitHub Actions** | **ここでキーを使う。** 無料・常時稼働・Secretsは暗号化される |
+| **Claude Code の Routine** | **採用。** 取得から winners.md の更新まで一気に通せる |
+| GitHub Actions | Secretsは暗号化されるが、分析まで続けられない。手動用に残置 |
 | ご自身のMac | `crontab -e` で `0 6 * * *`。Macが起動している必要あり |
-| **Claude Code の Routine** | **分析だけ担当。キーは持たせない**（下記） |
 
-## ⚠ Claude Code の環境変数にキーを置かないこと
+## Claude Code の Routine に一本化する（採用した構成）
 
-一度「Routineに一本化してGitHubは不要」と書きましたが、**誤りでした。**
-公式ドキュメントに明記されています。
+**取得から分析まで1つのRoutineで通します。** GitHub Actions は使いません。
+
+### 前提: 環境変数はシークレットストアではない
+
+公式ドキュメントには、こう書かれています。
 
 > Anyone who uses the environment can read the values, and cloud environments
-> have no dedicated secrets store, so **don't add API keys or other credentials**.
+> have no dedicated secrets store, so don't add API keys or other credentials.
 > — [Configure cloud environments](https://code.claude.com/docs/en/cloud-environments)
 
-Claude Code のクラウド環境変数は**シークレットストアではありません。**
-平文で保持され、セッション内から読めます。Pro/Maxのセッション共有には
-**Public** の選択肢があるため、共有した瞬間に外へ出る経路があります。
+**それを承知のうえで環境変数に置く判断をしています**（2026-08-15・Hideさん）。
+根拠は2つ:
 
-**キーは GitHub Secrets に置いてください。** 暗号化され、ログ出力時も
-自動でマスクされます。
+- **個人アカウントで、環境を使うのは本人だけ**
+- **キーの権限が Read のみ。** できるのは自分の投稿の数字を読むことだけで、
+  投稿・削除・DMは一切できない。上限も月$2程度
 
-## 役割分担
+**ただし、セッションを Public で共有しないでください。** Pro/Maxの共有設定には
+Public があり、共有したセッションのログにキーが出ていると外から読めます。
 
-キーを持つ処理と、分析する処理を分けます。
+### 環境変数を登録する
+
+**claude.ai/code** を開き、**メッセージ入力欄の上の行にある雲アイコン**
+（現在の環境名が出ているところ）を選びます。**設定ページや直リンクはありません。**
+
+環境を編集して、環境変数の欄に `.env` 形式で1行ずつ貼ります。
 
 ```
-GitHub Actions（キーを持つ）
-  毎朝6:00 → x_metrics.py で取得 → posts.csv をコミット
-        ↓
-Claude Code Routine（キーを持たない）
-  毎朝6:30 → posts.csv を読んで集計 → winners.md を更新
+X_API_KEY=（コンシューマーキー）
+X_API_SECRET=（コンシューマーシークレット）
+X_ACCESS_TOKEN=（アクセストークン）
+X_ACCESS_SECRET=（アクセストークンシークレット）
 ```
 
-**Routine 側はAPIキーに触れません。** コミット済みの `posts.csv` を読むだけです。
+- **クォートは不要**です（付けても外されます）
+- **`#` を含む値だけはクォートで囲んでください**。囲まないとそこから
+  後ろがコメント扱いで消えます
+- `X_USER_ID` は初回実行のログに出るので、後から追記すれば `/users/me` の
+  $0.01/回 が消えます
+
+**値はセッション開始時に一度だけコピーされます。** 実行中のセッションには
+反映されないので、**登録後は新しいセッションを開いてください。**
 
 ### Routine を作る
 
 | 項目 | 値 |
 |---|---|
-| 名前 | X実績の振り返り（毎朝6:30 JST） |
-| cron | `30 21 * * *` （JST 6:30 = UTC 21:30） |
+| 名前 | X実績の記録と振り返り（毎朝6:00 JST） |
+| cron | `0 21 * * *` （JST 6:00 = UTC 21:00） |
 | 発火モード | 毎回あたらしいセッションを作る |
+| 環境 | **環境変数を登録した環境**を選ぶ |
 | プロンプト | **`x/docs/routine-metrics.txt` の全文** |
 
-**Actionsの30分後に置いてください。** 取得が終わってコミットされてから
-読み始めないと、前日ぶんの `posts.csv` を見ることになります。
+**cronはUTCで評価されます。** JST 6:00 は前日の 21:00 UTC。
 
 ## 動かなかったときは
 
