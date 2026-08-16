@@ -185,6 +185,7 @@ def to_row(t, reply):
     imp = npm(t, "impression_count") or pm.get("impression_count")
     return {
         "date": t["jst"].strftime("%Y-%m-%d"),
+        "time": t["jst"].strftime("%H:%M"),
         "slot": slot_of(t["jst"]),
         "format": classify(t["text"]),
         "episode": "",
@@ -199,6 +200,9 @@ def to_row(t, reply):
         "reply_impressions": npm(reply, "impression_count") if reply else None,
         "link_clicks": npm(reply, "url_link_clicks") if reply else None,
         "followers_delta": None,
+        # 本文をまるごと残す。在庫（stock.md）との照合と、Hideさんが直した
+        # 差分の学習に使うので、hook（1行目40字）だけでは足りない
+        "text": t["text"],
         "note": "x_metrics.py",
     }
 
@@ -222,7 +226,7 @@ def upsert(rows):
             old = pd.concat([old, r.to_frame().T], ignore_index=True)
             added += 1
     old["_s"] = old["slot"].map(SLOT_ORDER).fillna(9)
-    old = old.sort_values(["date", "_s"]).drop(columns="_s")
+    old = old.sort_values(["date", "time", "_s"], na_position="first").drop(columns="_s")
     old.to_csv(POSTS_CSV, index=False)
     return added, updated
 
@@ -255,13 +259,17 @@ def main():
     print(f"対象: {label}")
     print(f"取得 {len(tweets)}件（本文{len(mains)} / 導線リプ{len(replies)} / "
           f"交流リプ{len(social)}＝捨てる）  概算コスト ${len(tweets) * 0.005:.3f}\n")
-    print(f"{'日付':<11}{'枠':<3}{'imp':>9}{'♥':>6}{'返':>4}{'プロフ':>7}{'リプimp':>9}{'click':>7}  型")
     for r in rows:
         ri = r["reply_impressions"]
-        print(f"{r['date']:<11}{r['slot']:<3}{r['impressions'] or 0:>9,}{r['likes'] or 0:>6,}"
-              f"{r['replies'] or 0:>4}{r['profile_clicks'] or 0:>7,}"
-              f"{ri if ri is not None else '—':>9}{r['link_clicks'] if r['link_clicks'] is not None else '—':>7}"
-              f"  {r['format']}")
+        print("=" * 72)
+        print(f"{r['date']} {r['time']}（{r['slot']}）  {r['url']}")
+        print(f"imp {r['impressions'] or 0:,}  ♥{r['likes'] or 0:,}  RT{r['reposts'] or 0}  "
+              f"返{r['replies'] or 0}  BM{r['bookmarks'] or 0}  プロフ{r['profile_clicks'] or 0:,}  "
+              f"リプimp {ri if ri is not None else '—'}  click {r['link_clicks'] if r['link_clicks'] is not None else '—'}")
+        print(f"型（自動分類）: {r['format']}")
+        print("-" * 72)
+        print(r["text"])
+        print()
 
     if args.dry_run:
         print("\n--dry-run のため posts.csv は更新していません")

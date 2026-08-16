@@ -28,10 +28,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 POSTS_CSV = os.path.join(HERE, "posts.csv")
 
 COLUMNS = [
-    "date", "slot", "format", "episode", "hook", "url",
+    "date", "time", "slot", "format", "episode", "hook", "url",
     "impressions", "likes", "reposts", "replies", "bookmarks",
     "profile_clicks", "reply_impressions", "link_clicks",
-    "followers_delta", "note",
+    "followers_delta", "text", "note",
 ]
 
 NUMERIC = [
