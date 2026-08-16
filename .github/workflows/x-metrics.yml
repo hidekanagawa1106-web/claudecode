@@ -1,10 +1,10 @@
 name: X実績の自動取得
 
-# 毎日1回、自分の投稿の実績を X API から取って posts.csv に反映する。
-# 22:00 JST = 13:00 UTC。朝6時台に投稿しているので、16時間経った状態で取れる。
+# 毎朝6:00 JST（＝21:00 UTC）に、3日前の1日ぶんの実績を取って posts.csv に反映する。
+# 各投稿を72時間後に一度だけ取るので、同じ投稿に二重課金しない。
 on:
   schedule:
-    - cron: "0 13 * * *"
+    - cron: "0 21 * * *"
   workflow_dispatch: # 手動実行。初回のテストはこれで
 
 # posts.csv をコミットして戻すために書き込み権限が要る
@@ -35,7 +35,7 @@ jobs:
           X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
           # 任意。入れておくと /users/me の $0.01/回 を節約できる
           X_USER_ID: ${{ vars.X_USER_ID }}
-        run: python x/x_metrics.py --days 3
+        run: python x/x_metrics.py
 
       - name: 変更があればコミット
         run: |

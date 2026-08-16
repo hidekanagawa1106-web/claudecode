@@ -9,14 +9,28 @@ Access Token を発行するだけなので、ブラウザのリダイレクト�
 
     pip install requests requests-oauthlib
     export X_API_KEY=... X_API_SECRET=... X_ACCESS_TOKEN=... X_ACCESS_SECRET=...
-    python x/x_metrics.py --days 3
+    python x/x_metrics.py            # 3日前の1日ぶんを取る（既定）
 
 手順の全文は `x/docs/api-setup.md`。
+
+**既定は「3日前の1日ぶんだけ」。** 毎朝これを走らせると、各投稿はちょうど
+72時間後に**一度だけ**取得されます。インプレッションはそこまでで頭打ちになるので、
+同じ投稿を何度も取り直す必要がありません（＝重複課金しない）。
+
+取るもの / 取らないもの:
+
+| | |
+|---|---|
+| 通常の投稿 | **取る** |
+| 引用リポスト | **取る**（通常の投稿と同じ扱い） |
+| 自分の投稿への自分のリプ（＝導線リプ） | **取る**（本文に紐づけて記録） |
+| 他アカウントへの交流リプ | **捨てる**（APIが返してくるので課金は発生します） |
+| リポスト | **取らない**（API側で除外） |
 
 注意:
 - **non_public_metrics は直近30日の投稿にしか付きません。** 古い投稿は
   公開指標だけになるので、月次のエクスポートCSV（`analytics.py`）と併用します
-- 読み取りは1件 $0.005。`--days 3` なら1日あたり10件前後 = 月$1.5ほど
+- 読み取りは1件 $0.005。1日3〜13件なので**月$0.5〜2**
 """
 
 import argparse
@@ -78,43 +92,83 @@ def my_id(s):
     return uid
 
 
-def fetch(s, uid, days):
-    """直近 days 日ぶんの自分の投稿を取る。リツイートは除外。"""
-    start = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days))
+JST = dt.timezone(dt.timedelta(hours=9))
+
+
+def window(offset=None, days=None):
+    """取得する時間帯を UTC で返す。
+
+    既定（offset指定）は**JSTの1日ぶんだけ**を切り出す。毎朝走らせれば
+    各投稿は72時間後に一度だけ取得され、二度と取りに行きません。
+    """
+    today = dt.datetime.now(JST).date()
+    if days:  # 過去ぶんの取りこぼしを埋めるとき用
+        end = dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=30)
+        return end - dt.timedelta(days=days), end, None
+    target = today - dt.timedelta(days=offset)
+    start = dt.datetime.combine(target, dt.time.min, tzinfo=JST)
+    return start.astimezone(dt.timezone.utc), (start + dt.timedelta(days=1)).astimezone(dt.timezone.utc), target
+
+
+def fetch(s, uid, start, end):
+    """指定期間の自分の投稿を取る。
+
+    exclude=retweets でリポストだけ除外する。**引用リポストは除外されません**
+    （通常の投稿として返ってくる）ので、狙いどおり含まれます。
+
+    replies も除外できますが、それをすると**自分の導線リプまで消える**ので
+    ここでは除外せず、あとで手元で振り分けます。
+    """
     data = get(
         s, f"/users/{uid}/tweets",
         max_results=100,
         start_time=start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        end_time=end.strftime("%Y-%m-%dT%H:%M:%SZ"),
         exclude="retweets",
         **{
             "tweet.fields": "created_at,text,public_metrics,non_public_metrics,referenced_tweets",
         },
     ).get("data", [])
     for t in data:
-        t["jst"] = (dt.datetime.fromisoformat(t["created_at"].replace("Z", "+00:00"))
-                    + dt.timedelta(hours=9)).replace(tzinfo=None)
+        t["jst"] = dt.datetime.fromisoformat(t["created_at"].replace("Z", "+00:00")).astimezone(JST).replace(tzinfo=None)
     return data
 
 
 def split(tweets):
-    """本文と、その本文にぶら下げた自分のリプ（＝導線リプ）に分ける。
+    """本文 / 自分への導線リプ / 他人への交流リプ に振り分ける。
 
-    referenced_tweets の replied_to が自分の投稿を指していれば1stリプ扱い。
-    これで本文とリプが自動で紐づくので、リプ到達率まで計算できる。
+    - replied_to が**自分の投稿**を指す → 導線リプ（本文に紐づける）
+    - replied_to が**他人の投稿**を指す → 交流リプ（捨てる）
+    - replied_to が無い → 本文。**引用リポストもここに入る**
+      （引用は referenced_tweets の type が quoted なので replied_to にならない）
     """
     ids = {t["id"] for t in tweets}
-    mains, replies = [], {}
+    mains, replies, social = [], {}, []
     for t in tweets:
         parent = next((r["id"] for r in t.get("referenced_tweets") or []
                        if r["type"] == "replied_to"), None)
-        if parent and parent in ids:
+        if parent is None:
+            mains.append(t)
+        elif parent in ids:
             # 同じ親に複数ぶら下がっている場合、クリックが多いほうを採用
             cur = replies.get(parent)
             if cur is None or npm(t, "url_link_clicks") > npm(cur, "url_link_clicks"):
                 replies[parent] = t
-        elif parent is None:
-            mains.append(t)
-    return mains, replies
+        else:
+            social.append(t)
+    return mains, replies, social
+
+
+def already_done(target):
+    """その日ぶんを取得済みなら True。**二重に課金しないための番人。**"""
+    if target is None or not os.path.exists(POSTS_CSV):
+        return False
+    df = pd.read_csv(POSTS_CSV)
+    if "note" not in df or "date" not in df:
+        return False
+    hit = df[(df["date"].astype(str) == target.strftime("%Y-%m-%d"))
+             & (df["note"].astype(str).str.contains("x_metrics", na=False))]
+    return len(hit) > 0
 
 
 def npm(t, key):
@@ -175,22 +229,32 @@ def upsert(rows):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--days", type=int, default=3,
-                    help="何日ぶん遡るか（既定3。数字は72時間ほど伸び続けるため）")
+    ap.add_argument("--offset", type=int, default=3,
+                    help="何日前の1日ぶんを取るか（既定3。72時間で数字が頭打ちになるため）")
+    ap.add_argument("--days", type=int,
+                    help="直近N日ぶんをまとめて取る（取りこぼしを埋めるとき用）")
+    ap.add_argument("--force", action="store_true", help="取得済みでも取り直す")
     ap.add_argument("--dry-run", action="store_true", help="posts.csv に書かずに表示だけ")
     args = ap.parse_args()
 
+    start, end, target = window(args.offset, args.days)
+    if target and already_done(target) and not args.force:
+        print(f"{target} ぶんは取得済みです。取り直すなら --force")
+        return
+
+    label = f"{target}（JSTの1日ぶん）" if target else f"直近{args.days}日"
     s = session()
-    tweets = fetch(s, my_id(s), args.days)
-    mains, replies = split(tweets)
+    tweets = fetch(s, my_id(s), start, end)
+    mains, replies, social = split(tweets)
     if not mains:
-        print(f"直近{args.days}日に自分の投稿はありませんでした")
+        print(f"{label}に自分の投稿はありませんでした（取得{len(tweets)}件）")
         return
 
     rows = [to_row(t, replies.get(t["id"])) for t in sorted(mains, key=lambda t: t["jst"])]
 
-    print(f"取得 {len(tweets)}件（本文{len(mains)} / 導線リプ{len(replies)}）"
-          f"  概算コスト ${len(tweets) * 0.005:.3f}\n")
+    print(f"対象: {label}")
+    print(f"取得 {len(tweets)}件（本文{len(mains)} / 導線リプ{len(replies)} / "
+          f"交流リプ{len(social)}＝捨てる）  概算コスト ${len(tweets) * 0.005:.3f}\n")
     print(f"{'日付':<11}{'枠':<3}{'imp':>9}{'♥':>6}{'返':>4}{'プロフ':>7}{'リプimp':>9}{'click':>7}  型")
     for r in rows:
         ri = r["reply_impressions"]
