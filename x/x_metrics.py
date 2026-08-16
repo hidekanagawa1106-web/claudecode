@@ -197,14 +197,22 @@ def slot_of(jst):
     return "朝" if h < 11 else ("昼" if h < 17 else "夜")
 
 
+def is_quote(t):
+    """引用リポストか。referenced_tweets の type が quoted なら確実に分かる。"""
+    return any(r["type"] == "quoted" for r in t.get("referenced_tweets") or [])
+
+
 def to_row(t, reply):
     pm = t.get("public_metrics") or {}
     imp = npm(t, "impression_count") or pm.get("impression_count")
+    # 引用RTは引用元が見えないと意味が取れないので、型の自動分類にかけない。
+    # かけると全部「断言・その他」に落ちて、分類そのものが濁る
+    fmt = "引用RT" if is_quote(t) else classify(t["text"])
     return {
         "date": t["jst"].strftime("%Y-%m-%d"),
         "time": t["jst"].strftime("%H:%M"),
         "slot": slot_of(t["jst"]),
-        "format": classify(t["text"]),
+        "format": fmt,
         "episode": "",
         "hook": t["text"].split("\n")[0][:40],
         "url": f"https://x.com/i/status/{t['id']}",

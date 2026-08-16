@@ -74,7 +74,26 @@ def load():
     # 長文が省略されたときに付く t.co を踏んだぶんが数クリック入るせいで、
     # リンクを貼っていない本編（1272万impの型4など）まで導線扱いになる。
     df["has_link"] = df["text"].astype(str).str.contains("http", na=False)
+
+    # 引用リポストも本文末尾に t.co が付くので、そのままだと導線ポストと
+    # 区別できない。導線ポストは「pr」表記か「↓▼」の誘導記号を持つので、
+    # **末尾にt.coが1つだけで、誘導記号もpr表記も無いもの**を引用RTとみなす。
+    df["is_quote"] = df["has_link"] & df["text"].map(looks_quote)
     return df.sort_values("jst"), empty
+
+
+def looks_quote(t):
+    """引用リポストらしいか。エクスポートCSVには引用元の情報が無いので推定。
+
+    日次の `x_metrics.py` 側は referenced_tweets を見られるので正確に判定できる。
+    こちらは過去ぶんを分類するための近似。
+    """
+    t = str(t)
+    if len(re.findall(r"https://t\.co/", t)) != 1:
+        return False
+    if "↓" in t or "▼" in t or re.search(r"\bpr\b", t.lower()):
+        return False
+    return bool(re.search(r"https://t\.co/\S+\s*$", t))
 
 
 # 型の判定。本文の形から機械的に付ける。あくまで一次分類で、
@@ -103,6 +122,7 @@ def head(text, n=44):
 def report(df, empty):
     own = df[~df["is_reply"]]
     organic = own[~own["has_link"]]
+    quotes = own[own["is_quote"]]
 
     print("=" * 74)
     print(f"読み込み {len(df):,}件 / 期間 {df['jst'].min():%Y-%m-%d} 〜 {df['jst'].max():%Y-%m-%d}")
@@ -161,6 +181,14 @@ def report(df, empty):
     vc = own["jst"].dt.hour.value_counts().sort_index()
     for h, n in vc.items():
         print(f"  {h:>2}時 {'█' * n} {n}")
+
+    if not quotes.empty:
+        print(f"\n## 引用リポスト {len(quotes)}本（オーガニックの集計からは外してあります）")
+        med = organic["imp"].median()
+        print(f"  中央値 {quotes['imp'].median():,.0f}  最大 {quotes['imp'].max():,.0f}"
+              f"  →  オーガニック中央値({med:,.0f})の {quotes['imp'].median()/med:.2f}倍")
+        print("  **平均より下です。** 引用RTは他人の投稿に乗るぶんネタ切れしませんが、")
+        print("  伸びやすい形ではありません")
 
     replies = df[df["is_reply"]]
     if not replies.empty:
