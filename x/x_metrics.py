@@ -313,20 +313,24 @@ def main():
     detail = f"本文{len(mains)}"
     if args.with_replies:
         detail += f" / 導線リプ{len(replies)} / 交流リプ{len(social)}＝捨てる"
-    print(f"取得 {len(tweets)}件（{detail}）  概算コスト ${len(tweets) * 0.005:.3f}")
+    print(f"取得 {len(tweets)}件（{detail}）")
+    print(f"概算コスト ${len(tweets) * 0.005:.3f}")
     if not args.with_replies:
-        print("返信はAPI側で除外しています。導線の数字は月次エクスポートで測ります\n")
-    else:
-        print()
+        print("返信は除外（導線は月次エクスポートで測定）")
+    print()
     for r in rows:
-        ri = r["reply_impressions"]
-        print("=" * 72)
-        print(f"{r['date']} {r['time']}（{r['slot']}）  {r['url']}")
-        print(f"imp {r['impressions'] or 0:,}  ♥{r['likes'] or 0:,}  RT{r['reposts'] or 0}  "
-              f"返{r['replies'] or 0}  BM{r['bookmarks'] or 0}  プロフ{r['profile_clicks'] or 0:,}  "
-              f"リプimp {ri if ri is not None else '—'}  click {r['link_clicks'] if r['link_clicks'] is not None else '—'}")
-        print(f"型（自動分類）: {r['format']}")
-        print("-" * 72)
+        # スマホで横スクロールしないよう、1行30字前後に収める。
+        # 罫線も短く、Markdownの記号は使わない
+        print("=" * 26)
+        print(f"{r['date']} {r['time']} {r['slot']}")
+        print(f"imp {r['impressions'] or 0:,}  ♥{r['likes'] or 0:,}  RT{r['reposts'] or 0}")
+        print(f"返{r['replies'] or 0}  BM{r['bookmarks'] or 0}  "
+              f"プロフ{r['profile_clicks'] or 0:,}")
+        if r["link_clicks"] is not None:
+            print(f"リプimp {r['reply_impressions']:,}  click {r['link_clicks']}")
+        print(f"型 {r['format']}")
+        print(r["url"])
+        print("-" * 26)
         print(r["text"])
         print()
 
@@ -334,8 +338,11 @@ def main():
     quotes = [r for r in rows if r["format"] == "引用RT"]
     if quotes:
         picked = sum(1 for r in quotes if (r["reposts"] or 0) >= 1)
-        print(f"引用リポスト {len(quotes)}本中 {picked}本がリポストされています"
-              f"（引用元に拾われたかの代理指標。**impではなくここを見ます**）")
+        print("=" * 26)
+        print(f"引用リポスト {len(quotes)}本中 {picked}本が")
+        print("リポストされました")
+        print("（引用元に拾われたかの代理指標。")
+        print(" impではなくここを見ます）")
 
     if args.dry_run:
         print("\n--dry-run のため posts.csv は更新していません")
