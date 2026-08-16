@@ -62,12 +62,19 @@ def get(s, path, **params):
 
 
 def my_id(s):
-    """ユーザーIDは変わらないのでキャッシュする（毎回引くと $0.01 かかる）。"""
+    """ユーザーIDは一生変わらないので、引くのは一度だけにする。
+
+    毎回 /users/me を叩くと $0.01/回。GitHub Actions のように毎回まっさらな
+    環境で走らせる場合は、環境変数 X_USER_ID に入れておけば呼びません。
+    """
+    if os.environ.get("X_USER_ID"):
+        return os.environ["X_USER_ID"].strip()
     if os.path.exists(ME_CACHE):
         return open(ME_CACHE).read().strip()
     uid = get(s, "/users/me")["data"]["id"]
     os.makedirs(os.path.dirname(ME_CACHE), exist_ok=True)
     open(ME_CACHE, "w").write(uid)
+    print(f"ユーザーIDは {uid}。X_USER_ID に入れておくと次回から $0.01 節約できます")
     return uid
 
 

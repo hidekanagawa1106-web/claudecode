@@ -1,0 +1,53 @@
+name: X実績の自動取得
+
+# 毎日1回、自分の投稿の実績を X API から取って posts.csv に反映する。
+# 22:00 JST = 13:00 UTC。朝6時台に投稿しているので、16時間経った状態で取れる。
+on:
+  schedule:
+    - cron: "0 13 * * *"
+  workflow_dispatch: # 手動実行。初回のテストはこれで
+
+# posts.csv をコミットして戻すために書き込み権限が要る
+permissions:
+  contents: write
+
+concurrency:
+  group: x-metrics
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install pandas requests requests-oauthlib
+
+      - name: 実績を取得して posts.csv に反映
+        env:
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          # 任意。入れておくと /users/me の $0.01/回 を節約できる
+          X_USER_ID: ${{ vars.X_USER_ID }}
+        run: python x/x_metrics.py --days 3
+
+      - name: 変更があればコミット
+        run: |
+          if git diff --quiet x/posts.csv; then
+            echo "posts.csv に変更なし"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add x/posts.csv
+          git commit -m "X実績を自動取得（$(date -u +%Y-%m-%d)）"
+          # 他のセッションが同時に push している可能性があるので、
+          # rebase してから押す。失敗しても次の日に取り直せるので落とさない
+          git pull --rebase origin main || exit 0
+          git push origin HEAD:main

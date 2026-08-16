@@ -132,21 +132,50 @@ X社に自動検知されて即失効します。
 
 ---
 
-## 7. 1日1回の自動実行に載せる
+## 7. GitHub Actions で毎日走らせる（推奨）
 
-**夜（22時ごろ）がおすすめ**です。朝6時台に投稿しているので、当日ぶんが
-16時間経った状態で取れます。
+**このリポジトリに `.github/workflows/x-metrics.yml` を用意済みです。**
+毎日 22:00 JST に走って、`posts.csv` を更新してコミットまでします。
 
-cron の例（JST 22:00 = UTC 13:00）:
+Claude Code の作業コンテナは毎回作り直されるので、そこに cron を仕掛けても
+翌日には消えます。**GitHub Actions なら無料で、キーも安全に保管できます。**
 
-```
-0 13 * * * cd /path/to/repo && python x/x_metrics.py --days 3 >> x/data/metrics.log 2>&1
-```
+### Secrets を4つ登録する
 
-Claude Code の Routine に載せる場合は、実行後に `python x/x_review.py` の集計と
-`winners.md` の更新まで続けさせると、**ループが完全に閉じます。**
+リポジトリの **Settings → Secrets and variables → Actions → New repository secret**
 
----
+| Name | Value |
+|---|---|
+| `X_API_KEY` | コンシューマーキー |
+| `X_API_SECRET` | コンシューマーシークレット |
+| `X_ACCESS_TOKEN` | アクセストークン |
+| `X_ACCESS_SECRET` | アクセストークンシークレット |
+
+**名前は完全に一致させてください**（大文字・アンダースコア）。
+
+### 任意: ユーザーIDを変数に入れる
+
+同じ画面の **Variables** タブで `X_USER_ID` を登録しておくと、毎回の
+`/users/me`（$0.01/回 = 月$0.3）を節約できます。IDは初回実行のログに出ます。
+
+### 初回は手動で回す
+
+**Actions タブ → 「X実績の自動取得」→ Run workflow。**
+スケジュールを待たずにテストできます。ログに取得件数と概算コストが出ます。
+
+### 動いているかの確認
+
+- 成功していれば `x/posts.csv` に自動コミットが入ります
+- 変更が無い日はコミットされません（正常）
+- 失敗するとGitHubからメールが届きます
+
+## 代わりの置き場所
+
+| 置き場所 | 向き |
+|---|---|
+| **GitHub Actions** | **推奨。** 無料・常時稼働・キーはSecrets |
+| ご自身のMac | `crontab -e` で `0 22 * * *`。Macが起動している必要あり |
+| Claude Code の Routine | 毎日セッションを立てる。記録だけなら重い |
 
 ## 動かなかったときは
 
@@ -156,6 +185,8 @@ Claude Code の Routine に載せる場合は、実行後に `python x/x_review.
 | `non_public_metrics` が空 | **31日以上前の投稿**。この指標は直近30日のみ |
 | `403 Forbidden` | 従量課金プランが未登録／App が Project に紐づいていない |
 | `429 Too Many Requests` | 実行間隔が短すぎる。1日1回なら起きません |
+| Actionsが `Permission denied` | ワークフローの `permissions: contents: write` を確認 |
+| Secretsを入れたのに未設定エラー | 名前の綴り。`X_ACCESS_SECRET` を `X_ACCESS_TOKEN_SECRET` にしがち |
 
 ---
 
