@@ -99,6 +99,8 @@ def looks_quote(t):
 # 型の判定。本文の形から機械的に付ける。あくまで一次分類で、
 # 微妙なものは `formats.md` を見て手で直す前提。
 FORMAT_RULES = [
+    # 助詞切り（型9）は本文が助詞のまま終わる。他のどの型よりも先に判定する
+    ("型9 助詞切り", lambda t: bool(re.search(r"(は|とは|が|には|のは)、\s*$", str(t).rstrip()))),
     ("型4 対比リスト", lambda t: "←" in t or "→" in t),
     ("型7 会話だけ", lambda t: len(re.findall(r"^.{0,8}「", t, re.M)) >= 3),
     ("型1 上司の一言", lambda t: bool(re.search(r"上司|部長|先輩", t)) and bool(re.search(r"[「『]", t))),
