@@ -1,0 +1,494 @@
+<title>ねこすけ運用ルール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --ground:#F6F7F8;
+  --surface:#FFFFFF;
+  --ink:#15181C;
+  --ink-soft:#4A525C;
+  --ink-mute:#7A838E;
+  --rule:#E1E5EA;
+  --rule-soft:#EDF0F3;
+  --shu:#B3392C;
+  --shu-bg:#FBEDEB;
+  --ai:#2C577F;
+  --ai-bg:#EAF0F6;
+  --shadow:0 1px 2px rgba(21,24,28,.05),0 8px 24px -16px rgba(21,24,28,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#101317;
+    --surface:#171B20;
+    --ink:#E7EAEE;
+    --ink-soft:#AEB6C0;
+    --ink-mute:#7C858F;
+    --rule:#272D34;
+    --rule-soft:#1F242A;
+    --shu:#E8776A;
+    --shu-bg:#2A1A18;
+    --ai:#7FADD8;
+    --ai-bg:#16222E;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#101317;
+  --surface:#171B20;
+  --ink:#E7EAEE;
+  --ink-soft:#AEB6C0;
+  --ink-mute:#7C858F;
+  --rule:#272D34;
+  --rule-soft:#1F242A;
+  --shu:#E8776A;
+  --shu-bg:#2A1A18;
+  --ai:#7FADD8;
+  --ai-bg:#16222E;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Zen Kaku Gothic New",system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  font-size:16px;
+  line-height:1.9;
+  -webkit-text-size-adjust:100%;
+}
+
+.wrap{max-width:760px;margin:0 auto;padding:0 20px 96px}
+
+/* ---- header ---- */
+header{padding:56px 0 28px;border-bottom:2px solid var(--ink)}
+.eyebrow{
+  font-family:"Roboto Mono",ui-monospace,monospace;
+  font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-mute);margin:0 0 14px;
+}
+h1{
+  font-family:"Shippori Mincho B1",serif;font-weight:700;
+  font-size:clamp(30px,7vw,44px);line-height:1.3;margin:0;
+  text-wrap:balance;letter-spacing:.01em;
+}
+.sub{color:var(--ink-soft);font-size:14.5px;margin:16px 0 0;max-width:60ch}
+.meta{
+  display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:20px;
+  font-family:"Roboto Mono",monospace;font-size:11.5px;color:var(--ink-mute);
+  font-variant-numeric:tabular-nums;
+}
+
+/* ---- legend ---- */
+.legend{
+  display:flex;flex-wrap:wrap;gap:10px;margin:24px 0 0;
+  padding:14px 16px;background:var(--surface);border:1px solid var(--rule);
+  border-radius:3px;font-size:12.5px;color:var(--ink-soft);
+}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+
+/* ---- nav ---- */
+nav{
+  position:sticky;top:0;z-index:10;
+  background:color-mix(in srgb,var(--ground) 92%,transparent);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--rule);
+  margin:32px -20px 0;padding:10px 20px;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+}
+nav ol{display:flex;gap:6px;list-style:none;margin:0;padding:0;white-space:nowrap}
+nav a{
+  display:block;padding:5px 11px;border-radius:2px;
+  font-size:12.5px;color:var(--ink-soft);text-decoration:none;
+  border:1px solid transparent;
+}
+nav a:hover,nav a:focus-visible{color:var(--ink);border-color:var(--rule);background:var(--surface)}
+
+/* ---- sections ---- */
+section{margin-top:52px;scroll-margin-top:64px}
+h2{
+  font-family:"Shippori Mincho B1",serif;font-weight:600;
+  font-size:21px;line-height:1.5;margin:0 0 4px;
+  display:flex;align-items:baseline;gap:12px;text-wrap:balance;
+}
+h2 .n{
+  font-family:"Roboto Mono",monospace;font-size:12px;font-weight:500;
+  color:var(--ink-mute);flex:none;letter-spacing:.05em;
+}
+.lead{color:var(--ink-mute);font-size:13.5px;margin:0 0 18px;padding-left:32px}
+
+ul.rules{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+ul.rules li{
+  background:var(--surface);border:1px solid var(--rule);
+  padding:13px 16px;font-size:14.5px;line-height:1.8;
+}
+ul.rules li:first-child{border-radius:3px 3px 0 0}
+ul.rules li:last-child{border-radius:0 0 3px 3px}
+ul.rules li+li{border-top:none}
+ul.rules li b{font-weight:700}
+ul.rules li .sm{display:block;color:var(--ink-mute);font-size:12.5px;margin-top:3px}
+
+/* chips */
+.ev,.miss{
+  font-family:"Roboto Mono",monospace;font-size:11px;font-variant-numeric:tabular-nums;
+  padding:1.5px 7px;border-radius:2px;margin-left:7px;white-space:nowrap;
+  display:inline-block;vertical-align:2px;letter-spacing:.02em;
+}
+.ev{background:var(--ai-bg);color:var(--ai)}
+.miss{background:var(--shu-bg);color:var(--shu);font-weight:500}
+
+/* kata cards */
+.kata{display:flex;flex-direction:column;gap:10px}
+.k{
+  background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+  padding:15px 17px;
+}
+.k h3{
+  font-family:"Shippori Mincho B1",serif;font-weight:600;font-size:16px;
+  margin:0 0 3px;display:flex;flex-wrap:wrap;align-items:baseline;gap:9px;
+}
+.k .num{
+  font-family:"Roboto Mono",monospace;font-size:11.5px;color:var(--ai);
+  background:var(--ai-bg);padding:1.5px 7px;border-radius:2px;font-variant-numeric:tabular-nums;
+}
+.k ul{list-style:none;margin:8px 0 0;padding:0;font-size:14px;line-height:1.85}
+.k ul li{padding-left:15px;position:relative;color:var(--ink-soft)}
+.k ul li::before{content:"";position:absolute;left:2px;top:.85em;width:5px;height:1px;background:var(--ink-mute)}
+.k ul li b{color:var(--ink)}
+
+/* group table */
+.grp{width:100%;border-collapse:collapse;font-size:14px;background:var(--surface);
+  border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.grp th,.grp td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--rule-soft)}
+.grp tr:last-child td{border-bottom:none}
+.grp th{font-size:11.5px;color:var(--ink-mute);font-weight:500;letter-spacing:.06em}
+.grp td:first-child{
+  font-family:"Roboto Mono",monospace;font-weight:500;color:var(--ai);width:52px;
+}
+.scroll{overflow-x:auto}
+
+/* callout */
+.note{
+  border-left:2px solid var(--shu);background:var(--shu-bg);
+  padding:14px 16px;border-radius:0 3px 3px 0;font-size:14px;line-height:1.8;
+  color:var(--ink);margin-top:14px;
+}
+.note b{color:var(--shu)}
+
+footer{
+  margin-top:64px;padding-top:22px;border-top:1px solid var(--rule);
+  font-size:12.5px;color:var(--ink-mute);line-height:1.9;
+}
+code{
+  font-family:"Roboto Mono",monospace;font-size:.87em;
+  background:var(--rule-soft);padding:1px 5px;border-radius:2px;
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">@nekosukexx / operating rules</p>
+  <h1>ねこすけ運用ルール</h1>
+  <p class="sub">投稿を書くときに守っていること。実測から出たものと、Hideさんの修正から出たものだけを載せています。推測で足した項目はありません。</p>
+  <div class="meta">
+    <span>更新 2026-08-21</span>
+    <span>全13節</span>
+    <span>実測 208本 / エクスポート12ヶ月</span>
+  </div>
+  <div class="legend">
+    <span><span class="ev">3.3x</span>実測の裏づけあり</span>
+    <span><span class="miss">×3</span>同じ指摘を受けた回数</span>
+  </div>
+</header>
+
+<nav>
+  <ol>
+    <li><a href="#s1">崩さない3つ</a></li>
+    <li><a href="#s2">ポジション</a></li>
+    <li><a href="#s3">具体性</a></li>
+    <li><a href="#s4">文体</a></li>
+    <li><a href="#s5">削り方</a></li>
+    <li><a href="#s6">骨格</a></li>
+    <li><a href="#s7">型ごと</a></li>
+    <li><a href="#s8">議論系</a></li>
+    <li><a href="#s9">導線</a></li>
+    <li><a href="#s10">素材</a></li>
+    <li><a href="#s11">運用</a></li>
+    <li><a href="#s12">制約</a></li>
+    <li><a href="#s13">私の癖</a></li>
+  </ol>
+</nav>
+
+<section id="s1">
+  <h2><span class="n">01</span>絶対に崩さないもの</h2>
+  <p class="lead">これだけは例外なし。</p>
+  <ul class="rules">
+    <li>ハッシュタグを使わない<span class="ev">208本中0本</span></li>
+    <li>絵文字を使わない<span class="ev">208本中3本</span><span class="sm">型7の話者記号だけが例外</span></li>
+    <li><b>本文に外部リンクを入れない。</b>導線は必ず1stリプ</li>
+  </ul>
+</section>
+
+<section id="s2">
+  <h2><span class="n">02</span>話者のポジション</h2>
+  <p class="lead">誰の目線で書くか。ここが崩れると型の説得力が消える。</p>
+  <ul class="rules">
+    <li><b>観察者であって主役ではない。</b>自分を上げる投稿を書かない<span class="ev">武勇伝0本</span></li>
+    <li>自分が登場するときは、常に<b>失敗している側か教わる側</b></li>
+    <li><b>型2（面接官）だけは判断する側。</b>ここで困る側に立つと型の権威が消える</li>
+    <li>型7は<b>登場人物の中に語り手がいない</b>。心の声も第三者の頭の中</li>
+    <li>型8・型7で<b>一人称（こっち／自分）を使わない</b><span class="sm">「こっち」と書いた瞬間、語り手が裁く側に立つ</span></li>
+    <li><b>一次情報として書いた箇所を明示して渡す。</b>「見たことがない」と言われたら伝聞に切り替える<span class="sm">伝聞は逃げではなく手札。責任が相手側に移り、締めだけ本人の意見にできる</span></li>
+  </ul>
+</section>
+
+<section id="s3">
+  <h2><span class="n">03</span>具体性</h2>
+  <p class="lead">この人の投稿で最も効いている要素。数字はすべて月内相対中央値。</p>
+  <ul class="rules">
+    <li><b>主語を具体化する</b><span class="sm">若手社員 → 早稲田卒の25才 ／ メンタル弱い人 → 怒られたら3日引きずる人</span></li>
+    <li>年齢を入れる<span class="ev">3.3x</span>学歴を入れる<span class="ev">2.1x</span>数字を入れる<span class="ev">1.9x</span></li>
+    <li><b>述語はセリフにする。</b>要約された教訓は誰でも書けるが、セリフはその場にいた人しか書けない</li>
+    <li><b>型4だけは人物を持ち込まない</b><span class="ev">0.1x</span><span class="sm">型4では行動だけを具体化する。読者が自分を当てはめる枠なので、他人が座っていると入れない</span></li>
+    <li><b>数字は「具体的」の前に「現実的」か</b><span class="miss">×2</span><span class="sm">30分→15分／3秒→1〜2秒。その場面で実際に時計を見たらその値になるか</span></li>
+    <li><b>動作は頭の中で再生してから書く</b><span class="sm">視線が「止まる」→「泳ぐ」。AIを読むなら視線は動く</span></li>
+    <li><b>箇条書きは行動で書く。姿勢で書かない</b><span class="ev">姿勢だと14x沈む</span></li>
+    <li><b>箇条書きは3つまで</b><span class="ev">4つ以上で0.3x</span></li>
+    <li><b>分析的な語より状態の語</b><span class="miss">×3</span><span class="sm">確認は「その言葉を読者が自分について言うか」。「私は考えていた」とは言わないが「気を遣っていた」とは言う</span></li>
+  </ul>
+</section>
+
+<section id="s4">
+  <h2><span class="n">04</span>文体・語尾</h2>
+  <ul class="rules">
+    <li>常体。敬体は使わない<span class="sm">型2の「〜してますが」だけ例外</span></li>
+    <li>一人称は「ワイ」（失敗談のとき）。地の文では省略が多い</li>
+    <li><b>締めの既定は「〜よね。」</b><span class="ev">76本 / 1.05</span><span class="sm">「〜だよな。」12本0.80、「〜からね。」14本0.40が最弱</span></li>
+    <li><b>「マジで」が2番目の口癖</b><span class="ev">27回</span><span class="sm">「本当に」「非常に」に置き換えると別人になる</span></li>
+    <li><b>関西弁は型1の上司キャラ専用</b><span class="miss">×2</span><span class="sm">522万の上司の指紋。他の型に持ち込むと人物像が混ざる</span></li>
+    <li><b>実務の説明に強い語を使わない</b><span class="sm">逆算して → も参考に</span></li>
+    <li>疑問形にしない<span class="sm">議論系だけ例外</span></li>
+    <li><b>接続語は「型」ではなく「決め台詞と箇条書きの関係」で決める</b><span class="sm">決め台詞が3つの総括 → 「などあるが、総じて言うと、」／3つとは別の4つ目 → 「これだけでも◯◯が、とくに◯◯のは、…」</span></li>
+  </ul>
+</section>
+
+<section id="s5">
+  <h2><span class="n">05</span>削り方</h2>
+  <p class="lead">Hideさんの修正から抽出した13項目。書いたあとにこれで削る。</p>
+  <ul class="rules">
+    <li>説明の行を足さない<span class="sm">箇条書きから読者が埋められることは書かない</span></li>
+    <li><b>抽象的な帰結より、具体的な原因</b><span class="sm">帰結は読者が自分で想像できる</span></li>
+    <li>2文を1文に圧縮する<span class="sm">逆接の「が」でまとめる</span></li>
+    <li><b>締めで決め台詞を言い換えない。一段広い主語に上げる</b></li>
+    <li>名詞化して短くする<span class="sm">箇条書きを受ける語は「など」</span></li>
+    <li>セリフに「！」を付けて温度を出す</li>
+    <li><b>落としっぱなしにせず一言かばう</b><span class="sm">例外2つ ─ 構造の説明のとき／議論を狙う回（かばうと争点が片付く）</span></li>
+    <li>副詞を削る／1行目を改行しない</li>
+    <li><b>悪い側は「自分」を主語にした語でそろえる</b><span class="sm">自分で頑張る／自分が凹むだけ／自分の身を守る</span></li>
+    <li>技巧的な対句をやめる。言い切りにする</li>
+    <li>台詞のハードルは読者が今日できる高さに<span class="sm">作ったか → 考えたか</span></li>
+    <li><b>締めで誰も下げない。選択肢を渡す</b><span class="sm">批判ではなく提案で閉じる</span></li>
+    <li>依頼に書かれた要素を落とさない</li>
+  </ul>
+</section>
+
+<section id="s6">
+  <h2><span class="n">06</span>骨格グループ</h2>
+  <p class="lead">飽き対策の本体。在庫の中でAと非Aを半々に保つ。</p>
+  <div class="scroll">
+  <table class="grp">
+    <tr><th>群</th><th>型</th><th>見た目</th></tr>
+    <tr><td>A</td><td>型1・2・3・5</td><td>10〜14行。実績はここに集中</td></tr>
+    <tr><td>B</td><td>型4 対比リスト</td><td>『』も締めも無い</td></tr>
+    <tr><td>C</td><td>型7 会話だけ</td><td>地の文が無い</td></tr>
+    <tr><td>D</td><td>型8 短文</td><td>5〜7行</td></tr>
+    <tr><td>E</td><td>型9 助詞切り</td><td>一塊。本文に締めが無い</td></tr>
+  </table>
+  </div>
+  <ul class="rules" style="margin-top:10px">
+    <li><b>B・C・D にAの書式（『』・同意誘導）を持ち込まない</b></li>
+    <li><b>型より先に主張の形を見る。</b>「AだからB、BだからC」の連鎖は型7・型8に乗らない</li>
+  </ul>
+</section>
+
+<section id="s7">
+  <h2><span class="n">07</span>型ごとの書式</h2>
+  <div class="kata">
+
+    <div class="k">
+      <h3>型1 上司の一言<span class="num">57本 / 中央値895 / 最大522万</span></h3>
+      <ul>
+        <li><b>当たり外れが最大。在庫1本まで</b></li>
+        <li>失敗を他人のセリフで見せる／物理的な場面を1行</li>
+        <li><b>決め台詞を教訓にしない。</b>教えると説教、笑わせると引用される</li>
+        <li>決め台詞の中に対比か言い換えを入れる</li>
+        <li>二段にするのは<b>台詞と台詞の間にこちらの反応が挟まるときだけ</b></li>
+      </ul>
+    </div>
+
+    <div class="k">
+      <h3>型2 面接官の暴露<span class="num">導線率1位 0.0508%</span></h3>
+      <ul>
+        <li>1行目は必ず「ベンチャーで面接官してる〜」<b>15本中15本</b></li>
+        <li>「などあるが、実はよく落とすのが、」→『意外な一項目』→ 採用側の損得で締める</li>
+        <li><b>意外性のために事実を曲げない。</b>想像で書いた4本中3本却下</li>
+        <li>人格ではなく行動を批評する</li>
+      </ul>
+    </div>
+
+    <div class="k">
+      <h3>型3 人物観察<span class="num">58本 / 枚数の稼ぎ頭</span></h3>
+      <ul>
+        <li>学歴・年齢を頭に置く。<b>同じ人物を使い回してよい</b></li>
+        <li>型3内で年齢<b>5.7x</b>・学歴<b>4.1x</b></li>
+        <li>「とくに◯◯のは、…」で折りたたませる</li>
+      </ul>
+    </div>
+
+    <div class="k">
+      <h3>型4 対比リスト<span class="num">平常値1位 / 最大1272万 / 全クリックの53%</span></h3>
+      <ul>
+        <li>ラベルは<b>「強い人／弱い人」</b>を動かさない</li>
+        <li><b>6項目は1つの主張の6回の言い換え</b></li>
+        <li>左右は同じ軸の裏表<span style="color:var(--shu)">（×2 外した）</span></li>
+        <li>通し軸が最も濃い項目を1行目へ／数字は全角／方言を入れない</li>
+        <li><b>人物を入れない。</b>『』も同意誘導の締めも入れない</li>
+        <li>テーマは「頑張りすぎる人へのゆるし」が最大の当たり<span style="color:var(--ink-mute)">（転職テーマは1700分の1）</span></li>
+      </ul>
+    </div>
+
+    <div class="k">
+      <h3>型5 新人観察</h3>
+      <ul>
+        <li><b>箇条書きの3項目は、決め台詞の実例になっていること</b><span style="color:var(--shu)">（×2 外した）</span></li>
+        <li>実際に言う場面が浮かぶ言葉にする</li>
+        <li>決め台詞の主語を語り手の視点に合わせる<span style="color:var(--ink-mute)">（出してる → 教えてくれる）</span></li>
+      </ul>
+    </div>
+
+    <div class="k">
+      <h3>型7 会話だけ<span class="num">返信が最多になる型</span></h3>
+      <ul>
+        <li>地の文なし・『』なし・締めなし・箇条書きなし</li>
+        <li><b>地の文が無いぶん、前提はセリフに埋め込む</b><span style="color:var(--ink-mute)">（「来週までの例の件」）</span></li>
+        <li><b>心の声は観察ではなく判断で終える</b></li>
+      </ul>
+    </div>
+
+    <div class="k">
+      <h3>型9 助詞切り<span class="num">未検証・実験枠</span></h3>
+      <ul>
+        <li>場面から入る／生セリフを要約しない／主語は評価する側</li>
+        <li><b>セリフに答えを入れない。</b>セリフは事実、答えは原理</li>
+        <li><b>答えはセリフの事実の原因になっていること。</b>先に答えを決めてから事実を探す</li>
+        <li>落とした場面より<b>通した場面</b>。一見マイナスの事実で通すと謎が立つ</li>
+        <li>切る直前の名詞は<b>平凡でよい</b><span style="color:var(--shu)">（×2 凝りすぎて却下）</span></li>
+        <li>自己リプにはいつもの同意誘導が要る／<b>その回はアフィリンクを貼れない</b></li>
+      </ul>
+    </div>
+
+    <div class="k">
+      <h3>断言-リスト</h3>
+      <ul>
+        <li>1行目に引きを作らず<b>結論を言い切る</b></li>
+        <li>学歴・年齢を1行目に</li>
+        <li><b>箇条書きの重複は言葉ではなく行動で見る</b></li>
+        <li>締めに読者の得＋自覚できる語で名指し</li>
+      </ul>
+    </div>
+
+  </div>
+  <div class="note"><b>使わない型：</b>他人が登場しない断言。実測最下位の4万。</div>
+</section>
+
+<section id="s8">
+  <h2><span class="n">08</span>議論系</h2>
+  <p class="lead">議論を狙う回だけの例外ルール。いいね率を捨ててリーチを取る。</p>
+  <ul class="rules">
+    <li><b>「〜なのか、どうだろう…？」で終える。</b>争点と質問を1文に</li>
+    <li><b>締めの直前に争点を1行で並べる。</b>これが無いとリプが散る</li>
+    <li><b>同意を求める疑問（〜よね？）にしない</b><span class="sm">語り手の答えが見えていると、読者は「うん」で終わる</span></li>
+    <li><b>一言かばわない。</b>「だって」「らしい」で距離を取る<span class="sm">かばうと読者が納得して争点が片付く</span></li>
+    <li>テーマの条件 ─ <b>所属が瞬時に確定する／片側が不名誉（行動であって人格ではない）／答えるコストがゼロ</b></li>
+    <li><b>性別・国籍・政治は避ける</b><span class="sm">燃えずに黙られる。答えると自分の評判が下がるテーマは書き込まれない</span></li>
+  </ul>
+</section>
+
+<section id="s9">
+  <h2><span class="n">09</span>導線（1stリプ）</h2>
+  <ul class="rules">
+    <li><b>本文が伸びてから貼る</b><span class="sm">目安1〜2時間。同時に貼らない</span></li>
+    <li><b>導線リプは1本だけ</b><span class="ev">3ケースで確認</span></li>
+    <li>本文の主役も読者も否定しない。<b>損しているのは構造のせい</b>という置き方</li>
+    <li><b>型4にも貼る</b><span class="ev">全クリックの53%</span><span class="sm">「貼らない」は撤回済み</span></li>
+    <li>リプ到達率は元ポストの<b>約6%</b><span class="ev">53ペア</span></li>
+    <li><b>詳細クリック率0.62%は書き方では動かない</b><span class="ev">139本</span></li>
+    <li>訴求は<b>性格分析 0.116% &gt; 年収診断 0.075% &gt; その他 0.020%</b><span class="sm">間口の広さ順</span></li>
+    <li><b>元ポストを書く前に商材を決める。</b>バズってからPRを考えると0.04%側に落ちる</li>
+  </ul>
+</section>
+
+<section id="s10">
+  <h2><span class="n">10</span>素材</h2>
+  <ul class="rules">
+    <li>優先順位 ─ <b>ネタ帳</b> → 過去投稿の焼き直し → スワイプ → 時事 → 実体験 → リプ欄 → 他SNS</li>
+    <li><b>ネタ帳は claims.md（C001〜C095）。</b><code>/x-draft</code> の既定ソース。番号で指定できる</li>
+    <li><b>同じ骨格に乗るネタは束ねて1本にする</b><span class="sm">求人票の建前4件 → 型2リスト1本</span></li>
+    <li>スワイプで借りるのは<b>構造とテーマ</b>。言い回しとエピソードは借りない</li>
+    <li>時事は<b>入口だけ</b>。1行目で触れて2行目からいつもの型に戻る</li>
+    <li><b>主張が重なることは問題にしない</b><span class="sm">型と表現を変えて出し直すのが正しい。重複を理由に在庫を割り引かない</span></li>
+    <li>claims.md も debates.md も<b>参考であって縛りではない</b></li>
+  </ul>
+</section>
+
+<section id="s11">
+  <h2><span class="n">11</span>運用</h2>
+  <ul class="rules">
+    <li><b>日付も投稿枠も割り当てない</b></li>
+    <li><b>「記録が無い＝投稿していない」と扱わない</b><span class="sm">予約投稿が見えないため</span></li>
+    <li><b>テーマ指定の依頼には3案。骨格を変える</b><span class="sm">言い回しの差では選ぶ意味がない。1本に絞らなくてよい</span></li>
+    <li>投稿するなら<b>朝6時台</b><span class="ev">177 / 208本</span></li>
+    <li>引用RTの狙いは<b>引用元にリポストしてもらうこと</b>。impで評価しない</li>
+  </ul>
+</section>
+
+<section id="s12">
+  <h2><span class="n">12</span>安全・制約</h2>
+  <ul class="rules">
+    <li><b>会社名・部署名・製品名・個人名を出さない</b><span class="sm">リクルートのみ2026-08-13に解禁</span></li>
+    <li><b>検証されうる固有の数字を出さない</b><span class="sm">売上・人数・自分の評価ランク</span></li>
+    <li><b>うちでは新卒採用していない</b><span class="sm">動かせない事実</span></li>
+    <li>自動投稿・自動リプはしない</li>
+    <li>スクレイピング／ブラウザ自動化はしない<span class="sm">永久凍結リスク</span></li>
+    <li>APIキーをチャットに貼らない</li>
+    <li>アフィリンクと広告表記はHideさんが付ける</li>
+  </ul>
+</section>
+
+<section id="s13">
+  <h2><span class="n">13</span>私が繰り返した失敗</h2>
+  <p class="lead">同じ理由で複数回直されたもの。書いたあとここで照合する。</p>
+  <ul class="rules">
+    <li><b>器を先に作って中身を流し込む</b><span class="miss">×3</span><span class="sm">型を決めてから主張を埋める／逆張りの形を先に作る／箇条書きを先に思いついて決め台詞を後からかぶせる → 言いたいことを先に固める</span></li>
+    <li><b>1件の指摘を一般則に変換する</b><span class="miss">×4</span><span class="sm">3案は1つだけ／重複を指摘する／主張を絞る／未経験は書かない → 頼まれたものだけ規定に入れる</span></li>
+    <li><b>規定にあるのに下書きで守れない</b><span class="sm">語尾「なんだよな」／学歴の入れ忘れ → 書いたあと規定と照合する</span></li>
+    <li><b>左右の軸ズレ</b><span class="miss">×2</span><span class="sm">「◯◯ vs ◯◯」に抜き出して反対語か見る</span></li>
+    <li><b>関西弁の混入</b><span class="miss">×2</span></li>
+    <li><b>数字を盛る</b><span class="miss">×2</span></li>
+    <li><b>接続と中身のズレ</b><span class="sm">「とくに◯◯のは」と書いて中身が総括だった</span></li>
+  </ul>
+  <div class="note">
+    <b>打率について。</b>2026-08-18〜20に出した下書きのうち、修正なしで通ったのは1本だけ（型2「求人票の建前」）。共通点は<b>実測済みの骨格をそのまま使い、中身だけ入れ替えた</b>こと。新しい構造を試したものは全部直されている（型9は4回、型5は3回、議論系は2回）。<b>新しい骨格を試すときは、直しが数回入る前提で出す。</b>
+  </div>
+</section>
+
+<footer>
+  各ルールの根拠と実例は <code>x/docs/</code> の各ファイルにあります。<br>
+  voice.md（文体・削り方）／ formats.md（型ごと）／ funnel.md（導線）／ sources.md（素材）／ claims.md（ネタ帳）／ debates.md（議論テーマ）／ rules.md（この索引）
+</footer>
+
+</div>
