@@ -103,7 +103,8 @@ FORMAT_RULES = [
     # 助詞切り（型9）は本文が助詞のまま終わる。他のどの型よりも先に判定する
     ("型9 助詞切り", lambda t: bool(re.search(r"(は|とは|が|には|のは)、\s*$", str(t).rstrip()))),
     ("型4 対比リスト", lambda t: "←" in t or "→" in t),
-    ("型7 会話だけ", lambda t: len(re.findall(r"^.{0,8}「", t, re.M)) >= 3),
+    # 箇条書きの中のセリフ（・「今日中は厳しそうです」）を会話劇と誤判定しない
+    ("型7 会話だけ", lambda t: len(re.findall(r"^(?![・･]).{0,8}「", t, re.M)) >= 3),
     ("型1 上司の一言", lambda t: bool(re.search(r"上司|部長|先輩", t)) and bool(re.search(r"[「『]", t))),
     ("型2 面接官", lambda t: "面接官" in t or "面接して" in t),
     # 呼びかけ版（型5の派生）は宛先を1行目に置く。観察版と数字を分けて見る
