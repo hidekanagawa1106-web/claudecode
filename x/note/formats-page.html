@@ -1,0 +1,751 @@
+<title>X投稿の型カタログ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --ground:#F0F1EC;
+  --surface:#FFFFFF;
+  --surface-2:#E7E9E2;
+  --ink:#1A1D1A;
+  --ink-2:#4A504A;
+  --muted:#6E756C;
+  --line:#D3D7CC;
+  --accent:#24456B;
+  --accent-soft:#DFE6EF;
+  --flag:#A9382C;
+  --flag-soft:#F0DFDC;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#14171A;
+    --surface:#1C2024;
+    --surface-2:#242A2F;
+    --ink:#E9EBE6;
+    --ink-2:#BFC5BE;
+    --muted:#939A93;
+    --line:#31373C;
+    --accent:#8FB3DE;
+    --accent-soft:#1F2E40;
+    --flag:#E08376;
+    --flag-soft:#3A2523;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#14171A;
+  --surface:#1C2024;
+  --surface-2:#242A2F;
+  --ink:#E9EBE6;
+  --ink-2:#BFC5BE;
+  --muted:#939A93;
+  --line:#31373C;
+  --accent:#8FB3DE;
+  --accent-soft:#1F2E40;
+  --flag:#E08376;
+  --flag-soft:#3A2523;
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  font-size:16px;
+  line-height:1.85;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 96px;}
+
+/* ---------- header ---------- */
+.masthead{
+  padding:72px 0 40px;
+  border-bottom:1px solid var(--line);
+  display:flex;flex-direction:column;gap:20px;
+}
+.eyebrow{
+  font-family:"Roboto Mono",monospace;
+  font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--muted);
+}
+h1{
+  font-family:"Shippori Mincho B1",serif;
+  font-weight:700;
+  font-size:clamp(34px,6vw,54px);
+  line-height:1.25;
+  margin:0;
+  text-wrap:balance;
+  letter-spacing:.02em;
+}
+.lede{margin:0;max-width:60ch;color:var(--ink-2);}
+.ledger{
+  display:flex;flex-wrap:wrap;gap:0;
+  border:1px solid var(--line);
+  background:var(--surface);
+  border-radius:2px;
+}
+.ledger div{
+  flex:1 1 150px;
+  padding:14px 18px;
+  border-right:1px solid var(--line);
+}
+.ledger div:last-child{border-right:none;}
+.ledger dt{
+  font-family:"Roboto Mono",monospace;
+  font-size:11px;letter-spacing:.1em;color:var(--muted);
+  margin:0 0 2px;
+}
+.ledger dd{
+  margin:0;font-family:"Roboto Mono",monospace;
+  font-variant-numeric:tabular-nums;
+  font-size:19px;font-weight:500;
+}
+
+/* ---------- nav ---------- */
+nav.groups{
+  position:sticky;top:0;z-index:5;
+  background:var(--ground);
+  border-bottom:1px solid var(--line);
+  padding:12px 0;
+  display:flex;flex-wrap:wrap;gap:8px;
+}
+nav.groups a{
+  font-family:"Roboto Mono",monospace;
+  font-size:12px;letter-spacing:.06em;
+  text-decoration:none;color:var(--ink-2);
+  border:1px solid var(--line);
+  border-radius:2px;
+  padding:5px 10px;
+  background:var(--surface);
+}
+nav.groups a:hover,nav.groups a:focus-visible{
+  border-color:var(--accent);color:var(--accent);
+}
+
+/* ---------- type entries ---------- */
+.fmt{
+  padding:44px 0;
+  border-bottom:1px solid var(--line);
+  scroll-margin-top:64px;
+}
+.fmt-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;margin-bottom:6px;}
+.fmt-id{
+  font-family:"Roboto Mono",monospace;
+  font-size:13px;letter-spacing:.1em;
+  color:var(--accent);
+  border-bottom:2px solid var(--accent);
+  padding-bottom:2px;
+}
+.fmt h2{
+  font-family:"Shippori Mincho B1",serif;
+  font-size:27px;font-weight:700;margin:0;letter-spacing:.02em;
+}
+.chip{
+  font-family:"Roboto Mono",monospace;
+  font-size:11px;letter-spacing:.08em;
+  padding:3px 8px;border-radius:2px;
+  background:var(--accent-soft);color:var(--accent);
+  white-space:nowrap;
+}
+.chip.warn{background:var(--flag-soft);color:var(--flag);}
+.tagline{margin:0 0 22px;color:var(--ink-2);max-width:62ch;}
+
+.fmt-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:32px;align-items:start;}
+@media (max-width:820px){.fmt-body{grid-template-columns:1fr;gap:24px;}}
+
+.stats{
+  display:grid;grid-template-columns:auto 1fr;gap:2px 16px;
+  margin:0 0 18px;padding:0 0 16px;
+  border-bottom:1px dashed var(--line);
+  font-size:14px;
+}
+.stats dt{font-family:"Roboto Mono",monospace;font-size:11px;letter-spacing:.08em;color:var(--muted);align-self:center;}
+.stats dd{margin:0;font-variant-numeric:tabular-nums;}
+.stats dd b{font-weight:700;}
+
+.keys{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;}
+.keys li{padding-left:18px;position:relative;font-size:15px;}
+.keys li::before{
+  content:"";position:absolute;left:0;top:.72em;
+  width:7px;height:1px;background:var(--accent);
+}
+.keys li b{font-weight:700;}
+
+figure.sample{margin:0;}
+figure.sample pre{
+  margin:0;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-left:3px solid var(--accent);
+  border-radius:2px;
+  padding:20px 22px;
+  font-family:inherit;
+  font-size:15px;line-height:1.95;
+  white-space:pre-wrap;
+  word-break:break-word;
+  overflow-x:auto;
+}
+figure.sample pre + pre{margin-top:10px;border-left-color:var(--line);}
+figcaption{
+  font-family:"Roboto Mono",monospace;
+  font-size:11.5px;letter-spacing:.05em;
+  color:var(--muted);margin-top:8px;
+}
+figcaption.self{margin-top:12px;margin-bottom:4px;color:var(--ink-2);}
+
+/* ---------- closing ---------- */
+.pick{padding:48px 0 0;}
+.pick h2{font-family:"Shippori Mincho B1",serif;font-size:24px;margin:0 0 18px;}
+.pick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+.pick-card{
+  background:var(--surface);border:1px solid var(--line);border-radius:2px;
+  padding:16px 18px;
+}
+.pick-card h3{
+  margin:0 0 6px;font-size:13px;font-family:"Roboto Mono",monospace;
+  letter-spacing:.08em;color:var(--accent);font-weight:500;
+}
+.pick-card p{margin:0;font-size:14.5px;color:var(--ink-2);}
+.pick-card p b{color:var(--ink);}
+footer{
+  margin-top:40px;padding-top:20px;border-top:1px solid var(--line);
+  font-family:"Roboto Mono",monospace;font-size:11.5px;color:var(--muted);
+}
+a{color:var(--accent);}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">@nekosukexx ／ 実測 2025.05 – 12</p>
+  <h1>型カタログ</h1>
+  <p class="lede">公式エクスポート208本から作った型の一覧です。数字は<strong>中央値</strong>で比べています——最高記録どうしを並べても、運の大きさを比べているだけになるので。サンプルは実際に投稿したものか、承認済みの在庫から取っています。</p>
+  <dl class="ledger">
+    <div><dt>測定した投稿</dt><dd>208本</dd></div>
+    <div><dt>全体の中央値</dt><dd>2,110</dd></div>
+    <div><dt>型による差</dt><dd>約2倍</dd></div>
+    <div><dt>月による差</dt><dd>約300倍</dd></div>
+  </dl>
+  <p class="lede" style="font-size:14.5px;">型はインプレッションをほとんど説明しません。<strong>これは当てる装置ではなく、書き方の引き出し</strong>です。骨格グループ（A〜E）を散らすのは、月60本のペースで並べたときに同じ顔に見えないようにするためのものです。</p>
+</header>
+
+<nav class="groups" aria-label="型の一覧">
+  <a href="#k1">型1 上司の一言</a>
+  <a href="#k2">型2 面接官</a>
+  <a href="#k3">型3 人物観察</a>
+  <a href="#k4">型4 対比リスト</a>
+  <a href="#k5">型5 新人観察</a>
+  <a href="#k7">型7 会話だけ</a>
+  <a href="#k8">型8 短文</a>
+  <a href="#dg">断言-リスト</a>
+  <a href="#rn">議論系</a>
+  <a href="#k6">型6候補 二段</a>
+  <a href="#k9">型9候補 助詞切り</a>
+  <a href="#k10">型10候補 判定委譲</a>
+</nav>
+
+<!-- 型1 -->
+<article class="fmt" id="k1">
+  <div class="fmt-head">
+    <span class="fmt-id">型1</span>
+    <h2>上司の一言</h2>
+    <span class="chip">グループA</span>
+    <span class="chip warn">当たり外れ最大</span>
+  </div>
+  <p class="tagline">自分の失敗に、上司が予想外の一言をかぶせる。57本中10万を超えたのは3本だけで、残りは数百〜数千。宝くじ型なので在庫は1本までにしています。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>実測</dt><dd>57本</dd>
+        <dt>中央値</dt><dd><b>895</b>（全型で最下位）</dd>
+        <dt>最大</dt><dd><b>522万</b></dd>
+        <dt>導線率</dt><dd>0.0141%</dd>
+        <dt>在庫</dt><dd>3本</dd>
+      </dl>
+      <ul class="keys">
+        <li><b>失敗を他人のセリフで見せる。</b>「怒られた」ではなく、顧客の言葉をそのまま引く</li>
+        <li><b>物理的な場面を1行入れる。</b>「客先への道中」「緊張MAX」</li>
+        <li><b>決め台詞を教訓にしない。</b>この上司は何も教えていません。教えると説教になり、笑わせると引用されます</li>
+        <li>関西弁を話すのは<b>この上司だけ</b>。他の型に持ち込むと人物像が混ざります</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>新卒１年目、ワイの失態により顧客が「上司も連れて謝りにこい！」とブチギレ。
+客先への道中で緊張MAXの中、上司は「今後は気をつけろ」と怒るのではなく、
+
+「いい歳したオッサンが本気で怒る様子なんて滅多に見れへんで。楽しみやな。」
+
+と言って和ませてくれたのを、今でも感謝してる。</pre>
+      <figcaption>実測 522万 imp ／ 同じ「失敗＋上司の一言」で1,009本もある</figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- 型2 -->
+<article class="fmt" id="k2">
+  <div class="fmt-head">
+    <span class="fmt-id">型2</span>
+    <h2>面接官の暴露</h2>
+    <span class="chip">グループA</span>
+    <span class="chip">導線1位</span>
+  </div>
+  <p class="tagline">1行目は15本中15本が「ベンチャーで面接官してる〜」。拡散は3位でも、クリックは型3の4倍。<strong>判断する側に立てるのはこの型だけ</strong>です。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>実測</dt><dd>15本</dd>
+        <dt>中央値</dt><dd><b>6,294</b></dd>
+        <dt>最大</dt><dd>155万</dd>
+        <dt>導線率</dt><dd><b>0.0508%</b>（1位）</dd>
+        <dt>在庫</dt><dd>3本</dd>
+      </dl>
+      <ul class="keys">
+        <li><b>意外で、かつ本当。</b>意外性のために事実を曲げると、業界の人に一発で見抜かれます</li>
+        <li>落とす理由は<b>採用側のコスト</b>として説明する。人格の話にしない</li>
+        <li>決め台詞のある標準形（3つ挙げて→『意外な1つ』）と、下のような<b>リストだけの形</b>の2種類がある</li>
+        <li>弱者側に立った瞬間に型の権威が消えます（「聞かれて困る質問」で却下）</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>ベンチャーで面接官してるけど、これ履歴書に書いてると正直キツイ…
+
+・MOS
+・簿記3級
+・教員免許
+・秘書検定3級
+・TOEIC 650点
+・中小企業診断士
+・ビジネス実務マナー検定</pre>
+      <figcaption>実測 194,747 imp ／ 返信32（その月の最多）。『』も締めもありません</figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- 型3 -->
+<article class="fmt" id="k3">
+  <div class="fmt-head">
+    <span class="fmt-id">型3</span>
+    <h2>人物観察</h2>
+    <span class="chip">グループA</span>
+    <span class="chip">拡散の主力</span>
+  </div>
+  <p class="tagline">学歴と年齢が引きの装置です。型3の中だけで測っても<strong>年齢5.7倍・学歴4.1倍</strong>。ただし総合導線率は全型の最下位で、枚数はここ、クリックは型2・型7、という分担になります。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>実測</dt><dd>58本（最多）</dd>
+        <dt>中央値</dt><dd><b>3,676</b></dd>
+        <dt>最大</dt><dd>333万</dd>
+        <dt>導線率</dt><dd>0.0123%（最下位）</dd>
+        <dt>在庫</dt><dd>1本</dd>
+      </dl>
+      <ul class="keys">
+        <li><b>箇条書きは3つまで。</b>4つ以上は0.3倍（58本の実測）</li>
+        <li><b>行動で書く。姿勢で書かない。</b>333万は全部「読者が真似できる作業」、23万は「深夜でも最速対応」でした</li>
+        <li>接続は決め台詞の中身で決める——3つの総括なら「総じて言うと、」、4つ目の発見なら「とくに◯◯のは、…」</li>
+        <li>締めは<b>本人にもう一度喋らせて「強い。」で閉じる</b>形も使えます（観察型だけの特権）</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>一緒に働いてる慶應卒のマネージャー（38才）、なぜか部署の誰もが相談しやすくて、
+
+・話しかけると必ず一度手を止める
+・すぐ無理なら「16時からなら空く」と返す
+・忙しい週は先に自分の予定を共有しておく
+
+などあるが、総じて言うと、
+
+『話しかけていいか、部下に気を遣わせない』
+
+という点。
+相談が遅れるコストって、上司が思ってるより高くつくんだよね。</pre>
+      <figcaption>在庫（承認済み・未投稿）／ 最高記録は議事録の333万</figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- 型4 -->
+<article class="fmt" id="k4">
+  <div class="fmt-head">
+    <span class="fmt-id">型4</span>
+    <h2>対比リスト</h2>
+    <span class="chip">グループB</span>
+    <span class="chip">平常値1位</span>
+  </div>
+  <p class="tagline">全208本の1位（1272万）であり、8ヶ月の全クリックの53%を1本で稼いだ型でもあります。ただし<strong>テーマで1700倍</strong>ちがい、当たりは「頑張りすぎる人へのゆるし」。転職テーマは7,433でした。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>実測</dt><dd>12本</dd>
+        <dt>中央値</dt><dd><b>5,782</b>（1位）</dd>
+        <dt>最大</dt><dd><b>1272万</b></dd>
+        <dt>導線率</dt><dd>0.0162%（最高2,820クリック）</dd>
+        <dt>在庫</dt><dd>3本</dd>
+      </dl>
+      <ul class="keys">
+        <li><b>人物を出すと0.1倍。</b>ここだけ「他人を出す」の逆です。具体性は人物ではなく行動に載せる</li>
+        <li><b>6項目は6つの基準ではなく、1つの主張の6回の言い換え</b></li>
+        <li><b>左右は同じ軸の裏表。</b>「◯◯ vs ◯◯」に抜き出して反対語になるか見る</li>
+        <li>通し軸が最も濃い項目を1行目に。数字は全角（左列の幅が揃います）</li>
+        <li><b>『』も同意誘導の締めも要りません。</b>それで いいね7.6万</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>【本当に強いのはこういう人】
+
+←強い人　　　　　　　　弱い人→
+・80点で十分　　　　　・100点を求める
+・受け流す天才　　　　 ・抱え込む天才
+・うまくサボれる　　　 ・常にマジメすぎる
+・自分に優しい　　　　 ・自分に厳しい
+・自分と比べる　　　　 ・他人と比べる</pre>
+      <figcaption>実測 1272万 imp ／ いいね76,782・返信280・プロフクリック10,387</figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- 型5 -->
+<article class="fmt" id="k5">
+  <div class="fmt-head">
+    <span class="fmt-id">型5</span>
+    <h2>新人観察の総括</h2>
+    <span class="chip">グループA</span>
+    <span class="chip">派生あり</span>
+  </div>
+  <p class="tagline">箇条書き3つが、決め台詞の実例になっていること。ここを外して3回作り直しました。2026-08-21に<strong>呼びかけ版</strong>が派生していて、記録上も別の型として数字を見ます。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>実測</dt><dd>1本（27万）</dd>
+        <dt>在庫</dt><dd>2本（観察版・呼びかけ版）</dd>
+      </dl>
+      <ul class="keys">
+        <li><b>各項目が決め台詞の一文で説明できるか。</b>できない項目は捨てる</li>
+        <li><b>その一言だけを人に見せて、場面が1つに決まるか</b>（2回外しました）</li>
+        <li><b>明日やる動作が同じなら重複。</b>言葉が違っても同じです（2回外しました）</li>
+        <li>観察版の語り手は上司側。「出してる」ではなく<b>「教えてくれる」</b></li>
+        <li>呼びかけ版は<b>読者本人の行動を変える主張のとき</b>。決め台詞は独立文でなくてよく、短くできます</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>いろんな新人を見てきたが、一年で化ける人って、
+・「今日中は厳しそうです」と早めに言う
+・「途中ですけど、一回見てもらえますか」と持ってくる
+・「ここが分からなくて15分止まってます」と申告できる
+などあるが、総じて言うと、
+
+「自分の状態を、聞かれる前に教えてくれる」
+
+上司が一番しんどいのは、黙って持ち帰られることだからね。</pre>
+      <figcaption>観察版（在庫・承認済み）</figcaption>
+<pre>新人へ
+
+「説明が分かりづらい」と言われたら、
+・話す前に頭の中で整理する
+・専門用語を使うときは相手を選ぶ
+・知らない人には背景から、知ってる人には結論から
+など気をつけるべきで、総じていうと、
+
+「相手の頭の中をイメージする」
+
+クセをつけるのが大事。
+ビジネスでのコミュニケーションスキルってこれだからね。</pre>
+      <figcaption>呼びかけ版（在庫・承認済み）／ 宛先を1行目に置き、締めをスキル名に接続する</figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- 型7 -->
+<article class="fmt" id="k7">
+  <div class="fmt-head">
+    <span class="fmt-id">型7</span>
+    <h2>会話だけ</h2>
+    <span class="chip">グループC</span>
+    <span class="chip">導線2位</span>
+  </div>
+  <p class="tagline">地の文なし・『』なし・締めなし。拡散はしませんが、返信とエンゲージ率が上位で、<strong>リプ欄を開かせる</strong>ぶん導線では2位です。在庫が1本で一番薄いグループ。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>実測</dt><dd>1本（1,219）</dd>
+        <dt>導線率</dt><dd><b>0.0402%</b>（2位）</dd>
+        <dt>在庫</dt><dd>1本（最薄）</dd>
+      </dl>
+      <ul class="keys">
+        <li><b>因果の連鎖は運べません。</b>「AだからB、BだからC」の主張は型2の地の文か断言型へ</li>
+        <li><b>オチが成立する前提は、1行目のセリフに埋め込む</b>（締切・状況）。地の文が無いので他に置き場がありません</li>
+        <li>心の声は<b>判断で終える</b>。語り手は登場人物の中にいません</li>
+        <li>関西弁を入れない。型7の上司はキャラが決まっていない一般的な上司です</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>上司「来週までの例の件、どうなってる？」
+
+部下「すみません、まだ途中で…」
+
+上司「いや、急かしてるわけじゃなくて」
+
+部下「はい……」
+
+上司（別に今日中に出せと言ってるわけじゃないんだけどな…）</pre>
+      <figcaption>在庫（承認済み・未投稿）／ 同じ内容の型1と返信数を比べる予定</figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- 型8 -->
+<article class="fmt" id="k8">
+  <div class="fmt-head">
+    <span class="fmt-id">型8</span>
+    <h2>短文</h2>
+    <span class="chip">グループD</span>
+    <span class="chip warn">未検証</span>
+  </div>
+  <p class="tagline">5〜7行。他が10〜14行なので、<strong>長さだけで変化が出ます</strong>。誰かの一言から入って、短い締めで閉じる。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>実測</dt><dd>未検証</dd>
+        <dt>在庫</dt><dd>3本</dd>
+      </dl>
+      <ul class="keys">
+        <li><b>一人称（こっち／自分）を使わない。</b>「こっちが聞きたいのは」と書いた瞬間、語り手が裁く側に立ちます</li>
+        <li><b>落としっぱなしにせず一言かばう</b>（人を落としたときだけ。構造の説明では要りません）</li>
+        <li>セリフに「！」を付けて温度を出す。文の途中で改行しない</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>「前職では、こうやってました！」
+
+中途で入った人からこの一言が出たとき、だいたい半年後に浮いてる。前提条件がちがうと、前のやり方が通用しないことは当然ある。
+
+自分の勝ち筋にこだわらず、正しく現状認識できる人が頼られるんだよな。</pre>
+      <figcaption>在庫（承認済み・未投稿）</figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- 断言-リスト -->
+<article class="fmt" id="dg">
+  <div class="fmt-head">
+    <span class="fmt-id">断言</span>
+    <h2>断言-リスト</h2>
+    <span class="chip">非A</span>
+    <span class="chip warn">未検証</span>
+  </div>
+  <p class="tagline">結論 → 「たとえば、」→ 箇条書き4つ → 締め。<strong>因果の連鎖を運べる数少ない型</strong>で、Hideさんが2本続けて採用しています。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>実測</dt><dd>未検証</dd>
+        <dt>他人の登場</dt><dd><b>3.8倍</b>（この型で最大）</dd>
+        <dt>在庫</dt><dd>2本</dd>
+      </dl>
+      <ul class="keys">
+        <li><b>1行目に引きを作らない。</b>「◯◯かと思ってたけど、違った」は要りません。断言型の1行目は主張そのもの</li>
+        <li><b>学歴・年齢を1行目に入れる</b>（他人3.8倍・年齢3.5倍・学歴3.2倍）。規定にあるのに毎回抜けます</li>
+        <li>箇条書きの重複は<b>言葉ではなく行動</b>で見る。各項目を「明日やること」に読み替える</li>
+        <li>締めは<b>読者の得 ＋ 遅い側の名指し</b>。名指しは読者が自覚している状態の語で</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>ベンチャーで働いてるが、新卒ベンチャーは勧めない。
+
+たとえば、
+
+・企画の組み立て方
+・結論から報告する順番
+・議事録で論点と決定を分ける
+・事実と解釈を分けて振り返る
+
+などの基礎は身につければ一生使えるのに、ベンチャーではFB貰えないことも多い。
+
+狙うなら "大手なのに実力主義" のリクルートとか外資。
+裁量は後から取れるけど、"教わる時間" は最初の数年しかないんだよな。</pre>
+      <figcaption>在庫（承認済み・未投稿）／ 箇条書きの3つは100万超えの投稿から取った語彙</figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- 議論系 -->
+<article class="fmt" id="rn">
+  <div class="fmt-head">
+    <span class="fmt-id">議論系</span>
+    <h2>議論を狙う締め</h2>
+    <span class="chip">型ではなく規定</span>
+    <span class="chip warn">未検証</span>
+  </div>
+  <p class="tagline">型ではなく<strong>締めの規定</strong>なので、どの型にも乗せられます。この回だけ、いつもの同意誘導ではなく疑問形で終えます。リプ欄が開くぶん、導線にはむしろ有利。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>実測</dt><dd>未検証（2本待機）</dd>
+        <dt>参照</dt><dd>922万 / 765万（他アカウント）</dd>
+        <dt>在庫</dt><dd>2本</dd>
+      </dl>
+      <ul class="keys">
+        <li><b>締めの直前に争点を1行で並べる。</b>「どっち？」だけでは何に答えればいいか分からず、リプが散ります</li>
+        <li><b>同意を求める疑問にしない。</b>「〜よね？」は答えが見えていて「うん」で終わります</li>
+        <li>記号は「？？」ではなく<b>「…？」</b>。他アカウントの形は構造だけ借りて、語尾と記号は自分のものに戻す</li>
+        <li><b>一言かばうを入れない。</b>かばうと読者が納得して争点が片付きます。「だって」「らしい」で距離を取る</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>大手で面接官やってる友人が、リモート面接でAIを見ながら答えてる人はだいたい分かる、と言ってた。
+
+・急に語彙が硬くなる
+・質問すると1~2秒の沈黙
+・視線が画面の同じ場所で泳ぐ
+
+ただ、それを落とす理由にしていいかは決めきれてないらしい。
+面接くらい素手で戦えという話なのか、実務でAI使うんだから当然という話なのか。
+
+これどっち…？</pre>
+      <figcaption>在庫（承認済み・未投稿）／ 賞味期限あり：AIの扱いが定まると成立しません</figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- 型6候補 -->
+<article class="fmt" id="k6">
+  <div class="fmt-head">
+    <span class="fmt-id">型6候補</span>
+    <h2>二段の引き</h2>
+    <span class="chip">部分採用</span>
+  </div>
+  <p class="tagline">@sayu5632j の長文物語形式から<strong>引きの設置だけ</strong>を借りたもの。形式ごと持ち込むと別人になるので、型1に「決め台詞を2つ置く」構造だけ移しています。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>参照</dt><dd>519万 / 73万（他アカウント）</dd>
+        <dt>在庫</dt><dd>2本（型1-二段）</dd>
+      </dl>
+      <ul class="keys">
+        <li><b>二段が効くのは、2つの台詞の間にこちらの反応が挟まるときだけ。</b>同じ人が続けて喋るなら1つの台詞にまとめます</li>
+        <li>記録の <code>--format</code> は <b>型1-二段</b>。通常の型1と混ぜると検証が壊れます</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>新卒3年目、はじめて後輩をつけてもらったのに、
+半年で「異動させてほしい」と言われた。
+
+上司に報告したら、怒られると思っていたのに、
+
+『あいつ、何が得意やった？』
+
+と聞かれた。
+
+答えられなかった。
+苦手なところなら、いくらでも言えたのに。
+
+『できひんとこばっかり見てたら、そら逃げるわ』
+
+指導してるつもりで、
+減点する係をやってただけだったんだよな。</pre>
+      <figcaption>在庫（承認済み・未投稿）／ 2つの台詞の間に「答えられなかった」が挟まっています</figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- 型9候補 -->
+<article class="fmt" id="k9">
+  <div class="fmt-head">
+    <span class="fmt-id">型9候補</span>
+    <h2>助詞切り</h2>
+    <span class="chip">グループE</span>
+    <span class="chip warn">実績待ち</span>
+  </div>
+  <p class="tagline">本文を助詞のまま切って、答えを自己リプに置く。@papazo2245 から。<strong>本文に締めが無い唯一の型</strong>で、その回はアフィリンクを貼れません。在庫は1本まで。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>実測</dt><dd>1本投稿済み・実績待ち</dd>
+        <dt>判定材料</dt><dd>詳細クリック率 &gt; 0.62%</dd>
+        <dt>在庫</dt><dd>0本</dd>
+      </dl>
+      <ul class="keys">
+        <li><b>セリフに答えを入れない。</b>読んだ時点で何が悪いか分かると、続きを読む理由が消えます</li>
+        <li><b>落とした場面より、通した場面。</b>一見マイナスに聞こえる事実で通すと謎が立ちます</li>
+        <li>切る直前の名詞は<b>平凡で具体的でよい</b>（『部下への任せ方』）。造語にすると読めません</li>
+        <li>自己リプには<b>いつもの同意誘導が要ります</b>。締めが無いのは本文だけ</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>マネージャー候補の面接、候補者が「部下から"これでいいですか"って聞かれること、ほとんどないんです」と言った。放任に聞こえるが、その場で通した。実績や部下の人数も大事だが、私が見てる『部下への任せ方』は、</pre>
+      <figcaption class="self">↓ 自己リプ（答え）</figcaption>
+<pre>「どこまで決めていいか」を、依頼するときに言ってるかどうかなんだよね。この人は頼むときに必ず「ここは決めていい、ここだけ相談して」を先に伝えていた。出てきたものを後から自分好みに直す人は、部下が育たないし信頼も得られないからね。</pre>
+      <figcaption>2026-08-18 投稿（最終版）／ 4回作り直しています</figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- 型10候補 -->
+<article class="fmt" id="k10">
+  <div class="fmt-head">
+    <span class="fmt-id">型10候補</span>
+    <h2>判定委譲</h2>
+    <span class="chip warn">未採用</span>
+  </div>
+  <p class="tagline">@momo_ollife の922万・765万を支えている骨格。両者の言い分を並べて、自分は判定しない。<strong>いいね率を捨てる型</strong>なので、取り込むかどうかは保留にしています。</p>
+  <div class="fmt-body">
+    <div>
+      <dl class="stats">
+        <dt>参照</dt><dd>922万 / 765万（他アカウント）</dd>
+        <dt>状態</dt><dd>未採用（判断待ち）</dd>
+      </dl>
+      <ul class="keys">
+        <li>うちの過去の議論系は<b>断定して</b>議論を起こしていました。判定を投げるより、いいね率が保てます</li>
+        <li>この骨格を使うなら<b>議論系の締めの規定と一緒に</b>。争点を並べてから聞く</li>
+      </ul>
+    </div>
+    <figure class="sample">
+<pre>【Aの言い分】
+vs
+【Bの言い分】
+
+（どちらの主張も、そのままセリフで並べる）
+
+え、これ私が間違ってる…？</pre>
+      <figcaption>骨格のみ（うちでは未使用）</figcaption>
+    </figure>
+  </div>
+</article>
+
+<section class="pick">
+  <h2>選び方</h2>
+  <div class="pick-grid">
+    <div class="pick-card">
+      <h3>拡散を取りたい</h3>
+      <p><b>型3</b>（外れが少ない）か<b>型4</b>（天井が高い）。型4はテーマが「ゆるし」側のときだけ。</p>
+    </div>
+    <div class="pick-card">
+      <h3>クリックを取りたい</h3>
+      <p><b>型2</b>か<b>型7</b>。読者が転職の文脈にいる状態でリプまで降りてきます。型3の3〜4倍。</p>
+    </div>
+    <div class="pick-card">
+      <h3>返信を取りたい</h3>
+      <p><b>型7</b>か<b>議論系</b>。リプ欄が開くのは導線にも効きます。</p>
+    </div>
+    <div class="pick-card">
+      <h3>連鎖のある主張</h3>
+      <p><b>断言-リスト</b>か<b>型2の地の文</b>。型7と型8は因果を運べません。</p>
+    </div>
+    <div class="pick-card">
+      <h3>見た目を変えたい</h3>
+      <p><b>型8</b>（短さ）か<b>型9</b>（締めが無い）。在庫のA／非Aを半々に保つのはこのため。</p>
+    </div>
+    <div class="pick-card">
+      <h3>実体験があるとき</h3>
+      <p><b>型1</b>。ただし宝くじ型なので在庫は1本まで。素材が無いと書けません。</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  出典 x/docs/formats.md ／ x/docs/voice.md ／ x/docs/funnel.md ／ x/stock.md　—　最終更新 2026-08-21
+</footer>
+
+</div>
