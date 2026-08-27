@@ -211,6 +211,10 @@ def look_class(text):
     t = str(text)
     if "←" in t or "→" in t:
         return "対比リスト"
+    # セリフの応酬だけで進む形（型7）。地の文が無いので物語とは見た目が違う。
+    # 箇条書きの中のセリフ（・「今日中は厳しそうです」）は数えない
+    if len(re.findall(r"^(?![・･]).{0,8}[「（]", t, re.M)) >= 3:
+        return "会話劇"
     bullets = len(re.findall(r"^[・･]", t, re.M))
     if bullets == 0:
         return "物語・散文"
