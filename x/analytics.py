@@ -105,6 +105,8 @@ FORMAT_RULES = [
     ("型7 会話だけ", lambda t: len(re.findall(r"^.{0,8}「", t, re.M)) >= 3),
     ("型1 上司の一言", lambda t: bool(re.search(r"上司|部長|先輩", t)) and bool(re.search(r"[「『]", t))),
     ("型2 面接官", lambda t: "面接官" in t or "面接して" in t),
+    # 呼びかけ版（型5の派生）は宛先を1行目に置く。観察版と数字を分けて見る
+    ("型5-呼びかけ", lambda t: t.count("・") >= 3 and bool(re.match(r"^\s*\S{1,6}へ\s*$", str(t).split("\n")[0]))),
     ("型3/型5 観察", lambda t: t.count("・") >= 3),
 ]
 
