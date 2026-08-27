@@ -10,6 +10,7 @@
     python x/analytics.py
     python x/analytics.py --month 2025-12
     python x/analytics.py --formats      # 型の判定ルールと分類結果
+    python x/analytics.py --looks        # 見た目クラス別の平常値と、連投したときの落ち方
 """
 
 import argparse
@@ -201,10 +202,56 @@ def report(df, empty):
         print("  **リプ単体の配信量はほぼゼロ。** 交流の価値は配信量では測れない")
 
 
+def look_class(text):
+    """型番ではなく「読者から見た見た目」で分ける。
+
+    型2・型3・型5 は型としては別でも、画面上は同じ形に見える。飽きを測るには
+    型ではなくこちらで数える必要がある（2026-08-21）。
+    """
+    t = str(text)
+    if "←" in t or "→" in t:
+        return "対比リスト"
+    bullets = len(re.findall(r"^[・･]", t, re.M))
+    if bullets == 0:
+        return "物語・散文"
+    if re.search(r"(などあるが|など基本だが|これだけでも)", t):
+        return "箇条書き＋総括"
+    return "箇条書きのみ"
+
+
+def looks(df):
+    """見た目クラス別の平常値と、同じ見た目を連投したときの落ち方。"""
+    own = df[(~df["is_reply"]) & (~df["has_link"]) & (~df["is_quote"])].copy()
+    own = own.sort_values("jst")
+    own["rel"] = own["imp"] / own.groupby("month")["imp"].transform("median")
+    own["look"] = own["text"].map(look_class)
+
+    print(f"\n## 見た目クラス（オーガニック {len(own)}本）")
+    print(f"{'見た目':<12}{'本数':>6}{'相対中央値':>11}{'最大':>13}")
+    for k, g in own.groupby("look"):
+        print(f"{k:<12}{len(g):>6}{g['rel'].median():>11.2f}{g['imp'].max():>13,.0f}")
+
+    print("\n## 連投したときに落ちるか（72時間以内に前の投稿があるものだけ）")
+    own["prev"] = own["look"].shift(1)
+    own["gap_h"] = own["jst"].diff().dt.total_seconds() / 3600
+    sub = own[(own["gap_h"] <= 72) & own["prev"].notna()]
+    same = sub[sub["look"] == sub["prev"]]
+    diff = sub[sub["look"] != sub["prev"]]
+    print(f"  同じ見た目が続いた  n={len(same):>3}  相対中央値 {same['rel'].median():.2f}")
+    print(f"  見た目が変わった    n={len(diff):>3}  相対中央値 {diff['rel'].median():.2f}")
+    own["p2"] = own["look"].shift(2)
+    run3 = own[(own["look"] == own["prev"]) & (own["look"] == own["p2"])]
+    if len(run3):
+        print(f"  3本連続で同じ      n={len(run3):>3}  相対中央値 {run3['rel'].median():.2f}")
+    print("  **2026-08-21 時点では差がありません。** ただしこのデータは月26本ペース。")
+    print("  1日2本の水準で飽きが出るかは、これから貯まる数字で見ること。")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--month", help="YYYY-MM で絞る")
     ap.add_argument("--formats", action="store_true", help="型の自動分類の結果を全件出す")
+    ap.add_argument("--looks", action="store_true", help="見た目クラス別の平常値と連投の影響")
     args = ap.parse_args()
 
     df, empty = load()
@@ -212,6 +259,10 @@ def main():
         df = df[df["month"] == args.month]
         if df.empty:
             raise SystemExit(f"{args.month} のデータがありません")
+
+    if args.looks:
+        looks(df)
+        return
 
     if args.formats:
         own = df[(~df["is_reply"]) & (~df["has_link"])]
