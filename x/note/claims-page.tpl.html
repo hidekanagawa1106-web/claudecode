@@ -1,0 +1,166 @@
+<title>投稿ネタ帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --ground:#F0F1EC; --surface:#FFFFFF; --surface-2:#E7E9E2;
+  --ink:#1A1D1A; --ink-2:#4A504A; --muted:#6E756C; --line:#D3D7CC;
+  --accent:#24456B; --accent-soft:#DFE6EF; --flag:#A9382C; --flag-soft:#F0DFDC;
+  --ok:#3F6B4A; --ok-soft:#DEE9E0;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#14171A; --surface:#1C2024; --surface-2:#242A2F;
+    --ink:#E9EBE6; --ink-2:#BFC5BE; --muted:#939A93; --line:#31373C;
+    --accent:#8FB3DE; --accent-soft:#1F2E40; --flag:#E08376; --flag-soft:#3A2523;
+    --ok:#8FC49C; --ok-soft:#203024;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#14171A; --surface:#1C2024; --surface-2:#242A2F;
+  --ink:#E9EBE6; --ink-2:#BFC5BE; --muted:#939A93; --line:#31373C;
+  --accent:#8FB3DE; --accent-soft:#1F2E40; --flag:#E08376; --flag-soft:#3A2523;
+  --ok:#8FC49C; --ok-soft:#203024;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  font-size:16px;line-height:1.8;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:900px;margin:0 auto;padding:0 20px 80px;}
+.masthead{padding:56px 0 24px;display:flex;flex-direction:column;gap:14px;}
+.eyebrow{font-family:"Roboto Mono",monospace;font-size:11.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);}
+h1{font-family:"Shippori Mincho B1",serif;font-weight:700;margin:0;
+  font-size:clamp(30px,5.5vw,46px);line-height:1.25;letter-spacing:.02em;}
+.lede{margin:0;max-width:60ch;color:var(--ink-2);font-size:15px;}
+.lede b{color:var(--ink);}
+
+.tools{position:sticky;top:0;z-index:5;background:var(--ground);
+  padding:12px 0;border-bottom:1px solid var(--line);
+  display:flex;flex-direction:column;gap:10px;}
+.search{display:flex;align-items:center;gap:10px;
+  background:var(--surface);border:1px solid var(--line);border-radius:2px;padding:9px 12px;}
+.search input{flex:1;border:0;background:transparent;color:var(--ink);font:inherit;font-size:15px;outline:none;}
+.search input::placeholder{color:var(--muted);}
+.search .hit{font-family:"Roboto Mono",monospace;font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums;white-space:nowrap;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{font:inherit;font-size:13px;cursor:pointer;
+  background:var(--surface);color:var(--ink-2);border:1px solid var(--line);
+  border-radius:2px;padding:4px 10px;display:inline-flex;align-items:center;gap:6px;}
+.chip .n{font-family:"Roboto Mono",monospace;font-size:11px;color:var(--muted);}
+.chip:hover{border-color:var(--accent);}
+.chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+.chip.on .n{color:var(--accent);}
+
+ul.list{list-style:none;margin:0;padding:0;}
+.row{display:flex;gap:12px;align-items:baseline;
+  padding:9px 4px;border-bottom:1px solid var(--line);}
+.row.hide{display:none;}
+.num{font-family:"Roboto Mono",monospace;font-size:12.5px;color:var(--accent);
+  flex:0 0 44px;font-variant-numeric:tabular-nums;}
+.txt{flex:1;font-size:15.5px;}
+.sub{display:block;font-size:12px;color:var(--muted);margin-top:1px;}
+.mk{font-family:"Roboto Mono",monospace;font-size:10.5px;letter-spacing:.06em;
+  padding:2px 7px;border-radius:2px;white-space:nowrap;}
+.mk.stock{background:var(--ok-soft);color:var(--ok);}
+.mk.draft{background:var(--flag-soft);color:var(--flag);}
+.empty{padding:28px 4px;color:var(--muted);font-size:14.5px;}
+
+h2{font-family:"Shippori Mincho B1",serif;font-size:22px;margin:44px 0 8px;letter-spacing:.02em;}
+h2 + p{margin:0 0 16px;color:var(--ink-2);font-size:14.5px;max-width:60ch;}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:2px;background:var(--surface);}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14.5px;}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+th{font-family:"Roboto Mono",monospace;font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:400;}
+tr:last-child td{border-bottom:none;}
+td.num{flex:none;}
+td .mk{margin-left:8px;}
+.split{color:var(--ink-2);font-size:13.5px;}
+.lim{font-family:"Roboto Mono",monospace;font-size:11px;padding:2px 7px;border-radius:2px;}
+.lim-s{background:var(--flag-soft);color:var(--flag);}
+.lim-m{background:var(--accent-soft);color:var(--accent);}
+.lim-l{background:var(--surface-2);color:var(--muted);}
+footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
+  font-family:"Roboto Mono",monospace;font-size:11.5px;color:var(--muted);line-height:1.9;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+</style>
+
+<div class="wrap">
+<header class="masthead">
+  <p class="eyebrow">@nekosukexx ／ <!--COUNT--></p>
+  <h1>投稿ネタ帳</h1>
+  <p class="lede">投稿の材料です。<b>出どころも、過去に投稿したかどうかも区別していません</b>——同じネタを、表現と型を変えて何度でも出す前提なので。番号で指定できます（「C023で型4作って」）。</p>
+</header>
+
+<div class="tools">
+  <div class="search">
+    <input id="q" type="search" placeholder="ネタを検索（例: 報告 / C038 / 仕事術）" aria-label="ネタを検索">
+    <span class="hit" id="hit"></span>
+  </div>
+  <div class="chips" id="chips">
+<!--CHIPS-->
+  </div>
+</div>
+
+<ul class="list" id="list">
+<!--ROWS-->
+</ul>
+<p class="empty" id="empty" style="display:none">該当なし。検索語を短くするか、分類を「すべて」に戻してください。</p>
+
+<h2>議論テーマ</h2>
+<p>こちらは<b>割れること</b>が要件なので、ネタ帳とは別の棚です。締めは疑問形にします。期限は 短＝数ヶ月／中＝1年程度／長＝当面もつ。</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>#</th><th>テーマ</th><th>割れ方</th><th>期限</th></tr></thead>
+  <tbody>
+<!--DEBATES-->
+  </tbody>
+</table>
+</div>
+
+<footer>
+  <span class="mk stock">在庫</span> 承認済みの下書きがあるネタ　／　<span class="mk draft">提案中</span> 判断待ちの下書きがあるネタ<br>
+  どちらも<b>使ってはいけない印ではありません。</b>同じネタを別の型で出すのは想定どおりです。<br>
+  出典 x/docs/claims.md ／ x/debates.md　—　最終更新 2026-08-21
+</footer>
+</div>
+
+<script>
+(function(){
+  var q = document.getElementById('q');
+  var hit = document.getElementById('hit');
+  var empty = document.getElementById('empty');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+  var cat = '*';
+
+  function apply(){
+    var term = (q.value || '').trim().toLowerCase();
+    var n = 0;
+    rows.forEach(function(r){
+      var okCat = (cat === '*') || (r.dataset.cat === cat);
+      var okTerm = !term || r.dataset.q.toLowerCase().indexOf(term) >= 0;
+      var show = okCat && okTerm;
+      r.classList.toggle('hide', !show);
+      if (show) n++;
+    });
+    hit.textContent = n + ' / ' + rows.length;
+    empty.style.display = n ? 'none' : 'block';
+  }
+
+  q.addEventListener('input', apply);
+  chips.forEach(function(c){
+    c.addEventListener('click', function(){
+      chips.forEach(function(x){ x.classList.remove('on'); });
+      c.classList.add('on');
+      cat = c.dataset.cat;
+      apply();
+    });
+  });
+  apply();
+})();
+</script>
