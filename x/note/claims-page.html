@@ -1,0 +1,283 @@
+<title>投稿ネタ帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --ground:#F0F1EC; --surface:#FFFFFF; --surface-2:#E7E9E2;
+  --ink:#1A1D1A; --ink-2:#4A504A; --muted:#6E756C; --line:#D3D7CC;
+  --accent:#24456B; --accent-soft:#DFE6EF; --flag:#A9382C; --flag-soft:#F0DFDC;
+  --ok:#3F6B4A; --ok-soft:#DEE9E0;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#14171A; --surface:#1C2024; --surface-2:#242A2F;
+    --ink:#E9EBE6; --ink-2:#BFC5BE; --muted:#939A93; --line:#31373C;
+    --accent:#8FB3DE; --accent-soft:#1F2E40; --flag:#E08376; --flag-soft:#3A2523;
+    --ok:#8FC49C; --ok-soft:#203024;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#14171A; --surface:#1C2024; --surface-2:#242A2F;
+  --ink:#E9EBE6; --ink-2:#BFC5BE; --muted:#939A93; --line:#31373C;
+  --accent:#8FB3DE; --accent-soft:#1F2E40; --flag:#E08376; --flag-soft:#3A2523;
+  --ok:#8FC49C; --ok-soft:#203024;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  font-size:16px;line-height:1.8;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:900px;margin:0 auto;padding:0 20px 80px;}
+.masthead{padding:56px 0 24px;display:flex;flex-direction:column;gap:14px;}
+.eyebrow{font-family:"Roboto Mono",monospace;font-size:11.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);}
+h1{font-family:"Shippori Mincho B1",serif;font-weight:700;margin:0;
+  font-size:clamp(30px,5.5vw,46px);line-height:1.25;letter-spacing:.02em;}
+.lede{margin:0;max-width:60ch;color:var(--ink-2);font-size:15px;}
+.lede b{color:var(--ink);}
+
+.tools{position:sticky;top:0;z-index:5;background:var(--ground);
+  padding:12px 0;border-bottom:1px solid var(--line);
+  display:flex;flex-direction:column;gap:10px;}
+.search{display:flex;align-items:center;gap:10px;
+  background:var(--surface);border:1px solid var(--line);border-radius:2px;padding:9px 12px;}
+.search input{flex:1;border:0;background:transparent;color:var(--ink);font:inherit;font-size:15px;outline:none;}
+.search input::placeholder{color:var(--muted);}
+.search .hit{font-family:"Roboto Mono",monospace;font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums;white-space:nowrap;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{font:inherit;font-size:13px;cursor:pointer;
+  background:var(--surface);color:var(--ink-2);border:1px solid var(--line);
+  border-radius:2px;padding:4px 10px;display:inline-flex;align-items:center;gap:6px;}
+.chip .n{font-family:"Roboto Mono",monospace;font-size:11px;color:var(--muted);}
+.chip:hover{border-color:var(--accent);}
+.chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+.chip.on .n{color:var(--accent);}
+
+ul.list{list-style:none;margin:0;padding:0;}
+.row{display:flex;gap:12px;align-items:baseline;
+  padding:9px 4px;border-bottom:1px solid var(--line);}
+.row.hide{display:none;}
+.num{font-family:"Roboto Mono",monospace;font-size:12.5px;color:var(--accent);
+  flex:0 0 44px;font-variant-numeric:tabular-nums;}
+.txt{flex:1;font-size:15.5px;}
+.sub{display:block;font-size:12px;color:var(--muted);margin-top:1px;}
+.mk{font-family:"Roboto Mono",monospace;font-size:10.5px;letter-spacing:.06em;
+  padding:2px 7px;border-radius:2px;white-space:nowrap;}
+.mk.stock{background:var(--ok-soft);color:var(--ok);}
+.mk.draft{background:var(--flag-soft);color:var(--flag);}
+.empty{padding:28px 4px;color:var(--muted);font-size:14.5px;}
+
+h2{font-family:"Shippori Mincho B1",serif;font-size:22px;margin:44px 0 8px;letter-spacing:.02em;}
+h2 + p{margin:0 0 16px;color:var(--ink-2);font-size:14.5px;max-width:60ch;}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:2px;background:var(--surface);}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14.5px;}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+th{font-family:"Roboto Mono",monospace;font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:400;}
+tr:last-child td{border-bottom:none;}
+td.num{flex:none;}
+td .mk{margin-left:8px;}
+.split{color:var(--ink-2);font-size:13.5px;}
+.lim{font-family:"Roboto Mono",monospace;font-size:11px;padding:2px 7px;border-radius:2px;}
+.lim-s{background:var(--flag-soft);color:var(--flag);}
+.lim-m{background:var(--accent-soft);color:var(--accent);}
+.lim-l{background:var(--surface-2);color:var(--muted);}
+footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
+  font-family:"Roboto Mono",monospace;font-size:11.5px;color:var(--muted);line-height:1.9;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+</style>
+
+<div class="wrap">
+<header class="masthead">
+  <p class="eyebrow">@nekosukexx ／ 主張97件 ＋ 議論テーマ14件</p>
+  <h1>投稿ネタ帳</h1>
+  <p class="lede">投稿の材料です。<b>出どころも、過去に投稿したかどうかも区別していません</b>——同じネタを、表現と型を変えて何度でも出す前提なので。番号で指定できます（「C023で型4作って」）。</p>
+</header>
+
+<div class="tools">
+  <div class="search">
+    <input id="q" type="search" placeholder="ネタを検索（例: 報告 / C038 / 仕事術）" aria-label="ネタを検索">
+    <span class="hit" id="hit"></span>
+  </div>
+  <div class="chips" id="chips">
+<button class="chip on" data-cat="*">すべて<span class="n">97</span></button>
+<button class="chip" data-cat="キャリア戦略">キャリア戦略<span class="n">2</span></button>
+<button class="chip" data-cat="働く環境">働く環境<span class="n">2</span></button>
+<button class="chip" data-cat="組織">組織<span class="n">1</span></button>
+<button class="chip" data-cat="人間関係">人間関係<span class="n">6</span></button>
+<button class="chip" data-cat="仕事術">仕事術<span class="n">57</span></button>
+<button class="chip" data-cat="マインド">マインド<span class="n">14</span></button>
+<button class="chip" data-cat="あるあるネタ">あるあるネタ<span class="n">9</span></button>
+<button class="chip" data-cat="その他">その他<span class="n">6</span></button>
+  </div>
+</div>
+
+<ul class="list" id="list">
+<li class="row" data-cat="キャリア戦略" data-q="C001凡人の新卒1社目は大手が最適解キャリア戦略"><span class="num">C001</span><span class="txt">凡人の新卒1社目は大手が最適解</span></li>
+<li class="row" data-cat="キャリア戦略" data-q="C09620代は副業せず、本業にフルベットしろキャリア戦略"><span class="num">C096</span><span class="txt">20代は副業せず、本業にフルベットしろ</span><span class="mk draft">提案中</span></li>
+<li class="row" data-cat="働く環境" data-q="C002新人は出社すべき働く環境"><span class="num">C002</span><span class="txt">新人は出社すべき</span><span class="mk stock">在庫</span></li>
+<li class="row" data-cat="働く環境" data-q="C003出世するのは「上司が出世してる人」働く環境"><span class="num">C003</span><span class="txt">出世するのは「上司が出世してる人」</span></li>
+<li class="row" data-cat="組織" data-q="C004言いにくい報告をできるのが良い組織組織"><span class="num">C004</span><span class="txt">言いにくい報告をできるのが良い組織</span></li>
+<li class="row" data-cat="人間関係" data-q="C005会社の飲み会には極力参加すべき人間関係人間関係を円滑に"><span class="num">C005</span><span class="txt">会社の飲み会には極力参加すべき<span class="sub">人間関係を円滑に</span></span></li>
+<li class="row" data-cat="人間関係" data-q="C006人を巻き込む「協力者を増やす」スキルが重要人間関係人間関係を円滑に"><span class="num">C006</span><span class="txt">人を巻き込む「協力者を増やす」スキルが重要<span class="sub">人間関係を円滑に</span></span></li>
+<li class="row" data-cat="人間関係" data-q="C007裏での悪口は辞めよう人間関係人間関係を円滑に"><span class="num">C007</span><span class="txt">裏での悪口は辞めよう<span class="sub">人間関係を円滑に</span></span></li>
+<li class="row" data-cat="人間関係" data-q="C008困ってる同僚には個別でフォローしよう人間関係人間関係を円滑に"><span class="num">C008</span><span class="txt">困ってる同僚には個別でフォローしよう<span class="sub">人間関係を円滑に</span></span></li>
+<li class="row" data-cat="人間関係" data-q="C009思ったことも全ては言わないのが大人人間関係人間関係を円滑に"><span class="num">C009</span><span class="txt">思ったことも全ては言わないのが大人<span class="sub">人間関係を円滑に</span></span></li>
+<li class="row" data-cat="人間関係" data-q="C010報連相は自分の身を守るために必要人間関係人間関係を円滑に"><span class="num">C010</span><span class="txt">報連相は自分の身を守るために必要<span class="sub">人間関係を円滑に</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C011相手の聞きたい話をせよ仕事術人間関係を円滑に"><span class="num">C011</span><span class="txt">相手の聞きたい話をせよ<span class="sub">人間関係を円滑に</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C0121人で強い人より頼るのが上手い人仕事術人間関係を円滑に"><span class="num">C012</span><span class="txt">1人で強い人より頼るのが上手い人<span class="sub">人間関係を円滑に</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C013非合理的なマナーは消えれば良い仕事術合理的に考える"><span class="num">C013</span><span class="txt">非合理的なマナーは消えれば良い<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C014「悩む」ではなく「考える」のが大事仕事術合理的に考える"><span class="num">C014</span><span class="txt">「悩む」ではなく「考える」のが大事<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C015仕事を増やすのではなく減らせるのが優秀仕事術合理的に考える"><span class="num">C015</span><span class="txt">仕事を増やすのではなく減らせるのが優秀<span class="sub">合理的に考える</span></span><span class="mk stock">在庫</span></li>
+<li class="row" data-cat="仕事術" data-q="C016やりたいことをやるために残りを効率化すべし仕事術合理的に考える"><span class="num">C016</span><span class="txt">やりたいことをやるために残りを効率化すべし<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C017「誰のため」「何のため」か分からない仕事をするな仕事術合理的に考える"><span class="num">C017</span><span class="txt">「誰のため」「何のため」か分からない仕事をするな<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C018会議の最後にムダな質問で長引かせるな仕事術合理的に考える"><span class="num">C018</span><span class="txt">会議の最後にムダな質問で長引かせるな<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C019重箱の隅を気にせずポイントを抑えよう仕事術合理的に考える"><span class="num">C019</span><span class="txt">重箱の隅を気にせずポイントを抑えよう<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C020あなたの拘りではなく事業への貢献を考えよう仕事術合理的に考える"><span class="num">C020</span><span class="txt">あなたの拘りではなく事業への貢献を考えよう<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C021人を責めるのではなく「仕組み」を責めるべき仕事術合理的に考える"><span class="num">C021</span><span class="txt">人を責めるのではなく「仕組み」を責めるべき<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C022褒めるなら「人」を、責めるなら「コト」を仕事術合理的に考える"><span class="num">C022</span><span class="txt">褒めるなら「人」を、責めるなら「コト」を<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C023嫌いなことを耐えるのではなく好きになるよう工夫せよ仕事術困難なことも楽しむ"><span class="num">C023</span><span class="txt">嫌いなことを耐えるのではなく好きになるよう工夫せよ<span class="sub">困難なことも楽しむ</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C024小さな仕事でも120％出すことで信頼を得られる仕事術常に120%出す"><span class="num">C024</span><span class="txt">小さな仕事でも120％出すことで信頼を得られる<span class="sub">常に120%出す</span></span><span class="mk draft">提案中</span></li>
+<li class="row" data-cat="仕事術" data-q="C025一番出世してる同期って「とりあえずやってみる。」仕事術考えるよりまず行動"><span class="num">C025</span><span class="txt">一番出世してる同期って「とりあえずやってみる。」<span class="sub">考えるよりまず行動</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C097言われなくても自分で拾って改善する人がチームを助ける仕事術考えるよりまず行動"><span class="num">C097</span><span class="txt">言われなくても自分で拾って改善する人がチームを助ける<span class="sub">考えるよりまず行動</span></span><span class="mk stock">在庫</span></li>
+<li class="row" data-cat="仕事術" data-q="C026「作業」ではなく頭がちぎれるぐらい考えた「仕事」を仕事術自分で考える"><span class="num">C026</span><span class="txt">「作業」ではなく頭がちぎれるぐらい考えた「仕事」を<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C027上司に「どうすれば良い？」とは聞くな仕事術自分で考える"><span class="num">C027</span><span class="txt">上司に「どうすれば良い？」とは聞くな<span class="sub">自分で考える</span></span><span class="mk draft">提案中</span></li>
+<li class="row" data-cat="仕事術" data-q="C028手元にボールを残さずすぐにパスしよう仕事術自分で考える"><span class="num">C028</span><span class="txt">手元にボールを残さずすぐにパスしよう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C029時系列ではなく結論から説明せよ仕事術自分で考える"><span class="num">C029</span><span class="txt">時系列ではなく結論から説明せよ<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C030ロールモデルを見つけるのが最短仕事術自分で考える"><span class="num">C030</span><span class="txt">ロールモデルを見つけるのが最短<span class="sub">自分で考える</span></span><span class="mk draft">提案中</span></li>
+<li class="row" data-cat="仕事術" data-q="C031ゼロから考えずに徹底的にパクろう仕事術自分で考える"><span class="num">C031</span><span class="txt">ゼロから考えずに徹底的にパクろう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C032午前と午後で頭の使い方を分けよう仕事術自分で考える"><span class="num">C032</span><span class="txt">午前と午後で頭の使い方を分けよう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C033戦略的に休憩を取ろう仕事術自分で考える"><span class="num">C033</span><span class="txt">戦略的に休憩を取ろう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C0343割の時点で共有して方針のずれを確認しよう仕事術自分で考える"><span class="num">C034</span><span class="txt">3割の時点で共有して方針のずれを確認しよう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C035繰り返しの作業は効率化しよう仕事術自分で考える"><span class="num">C035</span><span class="txt">繰り返しの作業は効率化しよう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C036人に仕事を任せる前にまずは自分でやってみよう仕事術自分で考える"><span class="num">C036</span><span class="txt">人に仕事を任せる前にまずは自分でやってみよう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C037タスクは「すぐ着手できる」レベルまで具体化しよう仕事術自分で考える"><span class="num">C037</span><span class="txt">タスクは「すぐ着手できる」レベルまで具体化しよう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C038相手の理解度に合わせた説明をしよう仕事術自分で考える"><span class="num">C038</span><span class="txt">相手の理解度に合わせた説明をしよう<span class="sub">自分で考える</span></span><span class="mk stock">在庫</span></li>
+<li class="row" data-cat="仕事術" data-q="C039「つまり」をうまく使おう（逆に下手だとイマイチ）仕事術自分で考える"><span class="num">C039</span><span class="txt">「つまり」をうまく使おう（逆に下手だとイマイチ）<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C040説明するときは事前に頭の中で箇条書き仕事術自分で考える"><span class="num">C040</span><span class="txt">説明するときは事前に頭の中で箇条書き<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C041説明する時は頭の中にロジックツリーを作ろう仕事術自分で考える"><span class="num">C041</span><span class="txt">説明する時は頭の中にロジックツリーを作ろう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C042重要な内容は何度でも伝えよう仕事術自分で考える"><span class="num">C042</span><span class="txt">重要な内容は何度でも伝えよう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C043緊急かつ影響が大きい件はすぐに質問しよう仕事術自分で考える"><span class="num">C043</span><span class="txt">緊急かつ影響が大きい件はすぐに質問しよう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C044まだ自分で試行錯誤できるなら自分で考えよう仕事術自分で考える"><span class="num">C044</span><span class="txt">まだ自分で試行錯誤できるなら自分で考えよう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C045自分で調べても5分考えても分からないなら人に聞こう仕事術自分で考える"><span class="num">C045</span><span class="txt">自分で調べても5分考えても分からないなら人に聞こう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C046良いチームは「見える化」だけでなく「言える化」も仕事術自分で考える"><span class="num">C046</span><span class="txt">良いチームは「見える化」だけでなく「言える化」も<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C047会議の最初はまず目的を整理しよう仕事術自分で考える"><span class="num">C047</span><span class="txt">会議の最初はまず目的を整理しよう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C048対象は人ではなく意見にすべし仕事術自分で考える"><span class="num">C048</span><span class="txt">対象は人ではなく意見にすべし<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C049質問する時は意図も添えて伝えよう仕事術自分で考える"><span class="num">C049</span><span class="txt">質問する時は意図も添えて伝えよう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C050大きな成果を出すために強みを伸ばそう仕事術自分で考える"><span class="num">C050</span><span class="txt">大きな成果を出すために強みを伸ばそう<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C051良い上司は、いつ話しかけても良い雰囲気仕事術自分で考える"><span class="num">C051</span><span class="txt">良い上司は、いつ話しかけても良い雰囲気<span class="sub">自分で考える</span></span><span class="mk stock">在庫</span></li>
+<li class="row" data-cat="仕事術" data-q="C052大人なら愚痴をこぼすな仕事術自分で考える"><span class="num">C052</span><span class="txt">大人なら愚痴をこぼすな<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C053意思決定は早く、悩む時間を少なくしろ仕事術自分で考える"><span class="num">C053</span><span class="txt">意思決定は早く、悩む時間を少なくしろ<span class="sub">自分で考える</span></span><span class="mk draft">提案中</span></li>
+<li class="row" data-cat="仕事術" data-q="C054管理職は自分の感情を管理しろ仕事術自分で考える"><span class="num">C054</span><span class="txt">管理職は自分の感情を管理しろ<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C055嫌いな人にでも態度を変えるな仕事術自分で考える"><span class="num">C055</span><span class="txt">嫌いな人にでも態度を変えるな<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C056ビジネスとしてFBする前に、人と人との信頼関係仕事術自分で考える"><span class="num">C056</span><span class="txt">ビジネスとしてFBする前に、人と人との信頼関係<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C057仕事で正論を主張するな仕事術自分で考える"><span class="num">C057</span><span class="txt">仕事で正論を主張するな<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C058不必要な仕事をマジメに頑張る人は害がある仕事術自分で考える"><span class="num">C058</span><span class="txt">不必要な仕事をマジメに頑張る人は害がある<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C059大手企業で評価されるためには、雰囲気も大事仕事術自分で考える"><span class="num">C059</span><span class="txt">大手企業で評価されるためには、雰囲気も大事<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C060嫌いな人との関係は断捨離した方が幸せになる仕事術自分で考える"><span class="num">C060</span><span class="txt">嫌いな人との関係は断捨離した方が幸せになる<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C061「相手の時間を奪う」感覚がないのはやばい仕事術自分で考える"><span class="num">C061</span><span class="txt">「相手の時間を奪う」感覚がないのはやばい<span class="sub">自分で考える</span></span><span class="mk draft">提案中</span></li>
+<li class="row" data-cat="仕事術" data-q="C062人には活躍できる場所、できない場所がある仕事術自分で考える"><span class="num">C062</span><span class="txt">人には活躍できる場所、できない場所がある<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C063相手から聞かれるまでは話しすぎるな仕事術自分で考える"><span class="num">C063</span><span class="txt">相手から聞かれるまでは話しすぎるな<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C064「やる気のある無能」が一番やばい仕事術自分で考える"><span class="num">C064</span><span class="txt">「やる気のある無能」が一番やばい<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C065上司に「あの件どうなった？」と言われたらアウト仕事術自分で考える"><span class="num">C065</span><span class="txt">上司に「あの件どうなった？」と言われたらアウト<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="仕事術" data-q="C066名前を一発で覚える仕事術自分で考える"><span class="num">C066</span><span class="txt">名前を一発で覚える<span class="sub">自分で考える</span></span></li>
+<li class="row" data-cat="マインド" data-q="C067緊張感のある仕事こそエンタメだと思えマインド何事もポジティブに"><span class="num">C067</span><span class="txt">緊張感のある仕事こそエンタメだと思え<span class="sub">何事もポジティブに</span></span></li>
+<li class="row" data-cat="マインド" data-q="C068必要な場面ではハッキリ意見すべきマインド必要な意見は主張"><span class="num">C068</span><span class="txt">必要な場面ではハッキリ意見すべき<span class="sub">必要な意見は主張</span></span></li>
+<li class="row" data-cat="マインド" data-q="C069失敗の積み重ねが「成功」につながるマインド成功するまでやる"><span class="num">C069</span><span class="txt">失敗の積み重ねが「成功」につながる<span class="sub">成功するまでやる</span></span></li>
+<li class="row" data-cat="マインド" data-q="C070成功した人も最初は一歩目から（Amazon）マインド成功するまでやる"><span class="num">C070</span><span class="txt">成功した人も最初は一歩目から（Amazon）<span class="sub">成功するまでやる</span></span></li>
+<li class="row" data-cat="マインド" data-q="C071万全の準備をしたい人は、10年後も準備中のままマインド考えるよりまず行動"><span class="num">C071</span><span class="txt">万全の準備をしたい人は、10年後も準備中のまま<span class="sub">考えるよりまず行動</span></span></li>
+<li class="row" data-cat="マインド" data-q="C072社会では「素」を出さずに役を演じるべきマインド適当に生きる"><span class="num">C072</span><span class="txt">社会では「素」を出さずに役を演じるべき<span class="sub">適当に生きる</span></span></li>
+<li class="row" data-cat="マインド" data-q="C073やりたいことがないなら金を稼げマインド適当に生きる"><span class="num">C073</span><span class="txt">やりたいことがないなら金を稼げ<span class="sub">適当に生きる</span></span></li>
+<li class="row" data-cat="マインド" data-q="C074目的を達成するまで休むなマインド適当に生きる"><span class="num">C074</span><span class="txt">目的を達成するまで休むな<span class="sub">適当に生きる</span></span></li>
+<li class="row" data-cat="マインド" data-q="C075成果が出るまでの「助走期間」を耐えよマインド適当に生きる"><span class="num">C075</span><span class="txt">成果が出るまでの「助走期間」を耐えよ<span class="sub">適当に生きる</span></span></li>
+<li class="row" data-cat="マインド" data-q="C076新人が電話をとるべきマインド適当に生きる"><span class="num">C076</span><span class="txt">新人が電話をとるべき<span class="sub">適当に生きる</span></span></li>
+<li class="row" data-cat="マインド" data-q="C077ちょっと適当なぐらいが本当にメンタル強い人マインド適当に生きる"><span class="num">C077</span><span class="txt">ちょっと適当なぐらいが本当にメンタル強い人<span class="sub">適当に生きる</span></span><span class="mk draft">提案中</span></li>
+<li class="row" data-cat="マインド" data-q="C078依存先を増やすのが本当の自立マインド適当に生きる"><span class="num">C078</span><span class="txt">依存先を増やすのが本当の自立<span class="sub">適当に生きる</span></span></li>
+<li class="row" data-cat="マインド" data-q="C079今日やらない人は1年後もやってないマインド適当に生きる"><span class="num">C079</span><span class="txt">今日やらない人は1年後もやってない<span class="sub">適当に生きる</span></span></li>
+<li class="row" data-cat="マインド" data-q="C080他人ではなく昔の自分と比べようマインド適当に生きる"><span class="num">C080</span><span class="txt">他人ではなく昔の自分と比べよう<span class="sub">適当に生きる</span></span></li>
+<li class="row" data-cat="あるあるネタ" data-q="C081同期の出世頭ほど早々に転職あるあるネタ"><span class="num">C081</span><span class="txt">同期の出世頭ほど早々に転職</span><span class="mk draft">提案中</span></li>
+<li class="row" data-cat="あるあるネタ" data-q="C082「ここで通用しなきゃ他でもダメ」言う上司はだいたい転職経験無あるあるネタ"><span class="num">C082</span><span class="txt">「ここで通用しなきゃ他でもダメ」言う上司はだいたい転職経験無</span><span class="mk draft">提案中</span></li>
+<li class="row" data-cat="あるあるネタ" data-q="C083立て替えた飲み代を翌日に返さない奴はわりと危険あるあるネタ"><span class="num">C083</span><span class="txt">立て替えた飲み代を翌日に返さない奴はわりと危険</span></li>
+<li class="row" data-cat="あるあるネタ" data-q="C084お辞儀ハンコはムダあるあるネタ"><span class="num">C084</span><span class="txt">お辞儀ハンコはムダ</span></li>
+<li class="row" data-cat="あるあるネタ" data-q="C085毎月スシロー連れてってくれた親すごいあるあるネタ"><span class="num">C085</span><span class="txt">毎月スシロー連れてってくれた親すごい</span></li>
+<li class="row" data-cat="あるあるネタ" data-q="C086求人の「年収350-1,200万」はもれなく350あるあるネタ"><span class="num">C086</span><span class="txt">求人の「年収350-1,200万」はもれなく350</span><span class="mk stock">在庫</span></li>
+<li class="row" data-cat="あるあるネタ" data-q="C087求人の「リモート可(要相談)」は問答無用でフル出社あるあるネタ"><span class="num">C087</span><span class="txt">求人の「リモート可(要相談)」は問答無用でフル出社</span><span class="mk stock">在庫</span></li>
+<li class="row" data-cat="あるあるネタ" data-q="C088求人の「アットホームな会社」「風通しのいい職場」はもれなく家族経営のブラック企業あるあるネタ"><span class="num">C088</span><span class="txt">求人の「アットホームな会社」「風通しのいい職場」はもれなく家族経営のブラック企業</span><span class="mk stock">在庫</span></li>
+<li class="row" data-cat="あるあるネタ" data-q="C089求人の「人材じゃなく人財」と書いてる企業は淀みのない黒あるあるネタ"><span class="num">C089</span><span class="txt">求人の「人材じゃなく人財」と書いてる企業は淀みのない黒</span><span class="mk stock">在庫</span></li>
+<li class="row" data-cat="その他" data-q="C090大きな勝ちを得るために、小さな論点は勝ちを譲るその他合理的に考える"><span class="num">C090</span><span class="txt">大きな勝ちを得るために、小さな論点は勝ちを譲る<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="その他" data-q="C091真面目すぎると病みやすいその他合理的に考える"><span class="num">C091</span><span class="txt">真面目すぎると病みやすい<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="その他" data-q="C092小さな論点で意見が合わないとき、わざと相手に譲るその他合理的に考える"><span class="num">C092</span><span class="txt">小さな論点で意見が合わないとき、わざと相手に譲る<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="その他" data-q="C093正当に評価される環境が大事その他合理的に考える"><span class="num">C093</span><span class="txt">正当に評価される環境が大事<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="その他" data-q="C094まずやってみてから改善するのが早いその他合理的に考える"><span class="num">C094</span><span class="txt">まずやってみてから改善するのが早い<span class="sub">合理的に考える</span></span></li>
+<li class="row" data-cat="その他" data-q="C095努力は熱狂に勝てないその他合理的に考える"><span class="num">C095</span><span class="txt">努力は熱狂に勝てない<span class="sub">合理的に考える</span></span></li>
+</ul>
+<p class="empty" id="empty" style="display:none">該当なし。検索語を短くするか、分類を「すべて」に戻してください。</p>
+
+<h2>議論テーマ</h2>
+<p>こちらは<b>割れること</b>が要件なので、ネタ帳とは別の棚です。締めは疑問形にします。期限は 短＝数ヶ月／中＝1年程度／長＝当面もつ。</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>#</th><th>テーマ</th><th>割れ方</th><th>期限</th></tr></thead>
+  <tbody>
+<tr class=""><td class="num">D1</td><td>退職代行を使った理由を、面接で聞くべきか</td><td class="split">聞くべき vs 聞くのは酷</td><td><span class="lim lim-m">中</span></td></tr>
+<tr class=""><td class="num">D2</td><td>辞め方は、次の会社に伝わるのか</td><td class="split">伝わって当然 vs 前職に連絡するのは違う</td><td><span class="lim lim-l">長</span></td></tr>
+<tr class=""><td class="num">D3</td><td>カジュアル面談は、選考なのか</td><td class="split">筋が通らない vs 当たり前だろ</td><td><span class="lim lim-l">長</span></td></tr>
+<tr class=""><td class="num">D4</td><td>「AI使えます」は加点か、減点材料か</td><td class="split">若手（加点） vs 評価する側（減点）</td><td><span class="lim lim-s">短</span></td></tr>
+<tr class=""><td class="num">D5</td><td>一次面接をAIがやる会社を、候補者はどう思うか</td><td class="split">企業（効率化） vs 候補者（人に見てほしい）</td><td><span class="lim lim-s">短</span></td></tr>
+<tr class=""><td class="num">D6</td><td>オファー面談で年収交渉すると、心証は下がるか</td><td class="split">交渉すべき vs 遠慮すべき</td><td><span class="lim lim-l">長</span></td></tr>
+<tr class=""><td class="num">D7</td><td>内定承諾後も他社を受け続けるのはアリか</td><td class="split">マナー vs 権利</td><td><span class="lim lim-l">長</span></td></tr>
+<tr class=""><td class="num">D8</td><td>「不採用の理由を教えてください」と言われたら</td><td class="split">答えるべき vs 答えられない事情がある</td><td><span class="lim lim-l">長</span></td></tr>
+<tr class=""><td class="num">D9</td><td>エージェント経由と直接応募、どちらが通りやすいか</td><td class="split">エージェント推奨 vs 直接応募</td><td><span class="lim lim-l">長</span></td></tr>
+<tr class="used"><td class="num">N1</td><td>面接で「勤務間インターバルありますか」と聞くのはアリか<span class="mk draft">提案中</span></td><td class="split">当然の権利 vs 楽したい人に見える</td><td><span class="lim lim-m">中</span></td></tr>
+<tr class=""><td class="num">N2</td><td>勤務間インターバル11時間の義務化</td><td class="split">あけられる会社 vs あけたら回らない会社</td><td><span class="lim lim-m">中</span></td></tr>
+<tr class=""><td class="num">N3</td><td>連続14日勤務の禁止</td><td class="split">そんなに働く人いる？ vs 普通にある業界がある</td><td><span class="lim lim-m">中</span></td></tr>
+<tr class=""><td class="num">N4</td><td>「つながらない権利」が見送られた理由</td><td class="split">なぜ守らない vs 人手不足で無理</td><td><span class="lim lim-s">短</span></td></tr>
+<tr class=""><td class="num">N5</td><td>働く高齢者が増えると、若手のポストはどうなるか</td><td class="split">ポストが空かない vs 働く権利</td><td><span class="lim lim-l">長</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<footer>
+  <span class="mk stock">在庫</span> 承認済みの下書きがあるネタ　／　<span class="mk draft">提案中</span> 判断待ちの下書きがあるネタ<br>
+  どちらも<b>使ってはいけない印ではありません。</b>同じネタを別の型で出すのは想定どおりです。<br>
+  出典 x/docs/claims.md ／ x/debates.md　—　最終更新 2026-08-21
+</footer>
+</div>
+
+<script>
+(function(){
+  var q = document.getElementById('q');
+  var hit = document.getElementById('hit');
+  var empty = document.getElementById('empty');
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+  var cat = '*';
+
+  function apply(){
+    var term = (q.value || '').trim().toLowerCase();
+    var n = 0;
+    rows.forEach(function(r){
+      var okCat = (cat === '*') || (r.dataset.cat === cat);
+      var okTerm = !term || r.dataset.q.toLowerCase().indexOf(term) >= 0;
+      var show = okCat && okTerm;
+      r.classList.toggle('hide', !show);
+      if (show) n++;
+    });
+    hit.textContent = n + ' / ' + rows.length;
+    empty.style.display = n ? 'none' : 'block';
+  }
+
+  q.addEventListener('input', apply);
+  chips.forEach(function(c){
+    c.addEventListener('click', function(){
+      chips.forEach(function(x){ x.classList.remove('on'); });
+      c.classList.add('on');
+      cat = c.dataset.cat;
+      apply();
+    });
+  });
+  apply();
+})();
+</script>
