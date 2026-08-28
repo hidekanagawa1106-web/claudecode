@@ -1,0 +1,157 @@
+<title>ぜんぶの入口</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --ground:#F0F1EC; --surface:#FFFFFF; --surface-2:#E7E9E2;
+  --ink:#1A1D1A; --ink-2:#4A504A; --muted:#6E756C; --line:#D3D7CC;
+  --accent:#24456B; --accent-soft:#DFE6EF;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#14171A; --surface:#1C2024; --surface-2:#242A2F;
+    --ink:#E9EBE6; --ink-2:#BFC5BE; --muted:#939A93; --line:#31373C;
+    --accent:#8FB3DE; --accent-soft:#1F2E40;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#14171A; --surface:#1C2024; --surface-2:#242A2F;
+  --ink:#E9EBE6; --ink-2:#BFC5BE; --muted:#939A93; --line:#31373C;
+  --accent:#8FB3DE; --accent-soft:#1F2E40;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  font-size:16px;line-height:1.8;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:720px;margin:0 auto;padding:0 20px 72px;}
+
+.masthead{padding:52px 0 22px;display:flex;flex-direction:column;gap:12px;}
+.eyebrow{font-family:"Roboto Mono",monospace;font-size:11.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);}
+h1{font-family:"Shippori Mincho B1",serif;font-weight:700;margin:0;
+  font-size:clamp(30px,6vw,44px);line-height:1.25;letter-spacing:.02em;}
+.lede{margin:0;max-width:56ch;color:var(--ink-2);font-size:15px;}
+
+h2{font-family:"Shippori Mincho B1",serif;font-size:19px;margin:36px 0 12px;
+  letter-spacing:.02em;padding-bottom:6px;border-bottom:1px solid var(--line);}
+
+.cards{display:flex;flex-direction:column;gap:10px;}
+.card{display:block;text-decoration:none;color:inherit;
+  background:var(--surface);border:1px solid var(--line);border-radius:3px;
+  padding:14px 16px;display:flex;gap:14px;align-items:flex-start;}
+.card:hover,.card:focus-visible{border-color:var(--accent);}
+.ico{font-size:22px;line-height:1.3;flex:0 0 auto;}
+.body{flex:1;min-width:0;}
+.ttl{font-weight:700;font-size:16.5px;margin:0 0 2px;}
+.desc{margin:0;font-size:14px;color:var(--ink-2);}
+.url{display:block;font-family:"Roboto Mono",monospace;font-size:11px;color:var(--muted);
+  margin-top:6px;word-break:break-all;}
+.upd{font-family:"Roboto Mono",monospace;font-size:11px;color:var(--muted);
+  flex:0 0 auto;white-space:nowrap;}
+
+.howto{margin-top:40px;background:var(--surface);border:1px solid var(--line);
+  border-radius:3px;padding:18px 20px;}
+.howto h3{font-family:"Shippori Mincho B1",serif;font-size:17px;margin:0 0 10px;}
+.howto ol{margin:0 0 4px;padding-left:1.2em;}
+.howto li{margin-bottom:6px;font-size:14.5px;}
+.howto p{margin:10px 0 0;font-size:13.5px;color:var(--muted);}
+.howto b{color:var(--ink);}
+footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--line);
+  font-family:"Roboto Mono",monospace;font-size:11.5px;color:var(--muted);line-height:1.9;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Claude で作ったページの入口</p>
+  <h1>ぜんぶの入口</h1>
+  <p class="lede">このページだけをスマホのホーム画面に置いておけば、下のページ全部にここから飛べます。リンクが開かない環境では、下のURLを長押しでコピーしてください。</p>
+</header>
+
+<h2>X運用</h2>
+<div class="cards">
+  <a class="card" href="https://claude.ai/code/artifact/151d965c-1430-460d-824a-ac9662d3057e" target="_blank" rel="noopener">
+    <span class="ico">🗒</span>
+    <span class="body">
+      <span class="ttl">投稿ネタ帳</span>
+      <p class="desc">主張97件＋議論テーマ14件。検索と分類で絞れます</p>
+      <span class="url">claude.ai/code/artifact/151d965c-1430-460d-824a-ac9662d3057e</span>
+    </span>
+    <span class="upd">08/28</span>
+  </a>
+  <a class="card" href="https://claude.ai/code/artifact/07cd4541-91f0-495a-8285-8885749228a6" target="_blank" rel="noopener">
+    <span class="ico">🗂</span>
+    <span class="body">
+      <span class="ttl">X投稿の型カタログ</span>
+      <p class="desc">型11種＋派生。実測の数字・急所・実物サンプル</p>
+      <span class="url">claude.ai/code/artifact/07cd4541-91f0-495a-8285-8885749228a6</span>
+    </span>
+    <span class="upd">08/27</span>
+  </a>
+  <a class="card" href="https://claude.ai/code/artifact/96284e5f-bf36-4234-82fc-b6d05c450bde" target="_blank" rel="noopener">
+    <span class="ico">🐈</span>
+    <span class="body">
+      <span class="ttl">ねこすけ運用ルール</span>
+      <p class="desc">規定の索引。守ることの一覧</p>
+      <span class="url">claude.ai/code/artifact/96284e5f-bf36-4234-82fc-b6d05c450bde</span>
+    </span>
+    <span class="upd">08/21</span>
+  </a>
+</div>
+
+<h2>株の運用</h2>
+<div class="cards">
+  <a class="card" href="https://claude.ai/code/artifact/9b9978b7-f0f0-4095-921c-2105a46140cd" target="_blank" rel="noopener">
+    <span class="ico">📋</span>
+    <span class="body">
+      <span class="ttl">グループ別 朝スコア定義表</span>
+      <p class="desc">朝のスコアの決め方</p>
+      <span class="url">claude.ai/code/artifact/9b9978b7-f0f0-4095-921c-2105a46140cd</span>
+    </span>
+    <span class="upd">08/02</span>
+  </a>
+  <a class="card" href="https://claude.ai/code/artifact/bc0b33d3-1dc2-4f39-b245-40ed3bbc9880" target="_blank" rel="noopener">
+    <span class="ico">🔗</span>
+    <span class="body">
+      <span class="ttl">日次ウォッチリスト運用 システム全体像</span>
+      <p class="desc">日次の流れとシステムの関係</p>
+      <span class="url">claude.ai/code/artifact/bc0b33d3-1dc2-4f39-b245-40ed3bbc9880</span>
+    </span>
+    <span class="upd">08/01</span>
+  </a>
+</div>
+
+<h2>その他</h2>
+<div class="cards">
+  <a class="card" href="https://claude.ai/code/artifact/968e008f-54db-4ca7-830c-8affc7bd8970" target="_blank" rel="noopener">
+    <span class="ico">🗂️</span>
+    <span class="body">
+      <span class="ttl">Claude Code の構造 — 何が残り、何が消えるか</span>
+      <p class="desc">セッションをまたいで残るものの整理</p>
+      <span class="url">claude.ai/code/artifact/968e008f-54db-4ca7-830c-8affc7bd8970</span>
+    </span>
+    <span class="upd">08/03</span>
+  </a>
+</div>
+
+<div class="howto">
+  <h3>スマホのホーム画面に置く</h3>
+  <ol>
+    <li><b>このページをスマホのブラウザで開く</b>（Claudeアプリ内ではなく、Safari や Chrome で）</li>
+    <li>共有ボタン → <b>「ホーム画面に追加」</b></li>
+    <li>名前を「ネタ帳」などに変えて追加</li>
+  </ol>
+  <p>アイコンをタップすると、このページが1タップで開きます。ページの中身を更新しても<b>URLは変わらない</b>ので、アイコンは置きっぱなしで大丈夫です。</p>
+  <p>ページはログインしている人だけが見られます。スマホのブラウザで claude.ai にログインしていないと開けません。</p>
+</div>
+
+<footer>
+  全ページの一覧は claude.ai/code/artifacts（PC・スマホのブラウザ）<br>
+  Claude Code のターミナルなら /artifacts　—　最終更新 2026-08-28
+</footer>
+
+</div>
