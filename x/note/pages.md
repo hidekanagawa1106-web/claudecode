@@ -5,8 +5,8 @@
 | ページ | URL | 元ファイル | 役割 |
 |---|---|---|---|
 | **ぜんぶの入口**（ハブ） | https://claude.ai/code/artifact/a318816d-5c77-46e4-a601-eca109457da4 | `x/note/hub.html` | 全ページへのリンク。**スマホのホーム画面に置く用** |
-| **X投稿の型カタログ** | https://claude.ai/code/artifact/07cd4541-91f0-495a-8285-8885749228a6 | `x/note/formats-page.html` | 型11種＋派生。実測の数字・急所・実物サンプル |
-| **投稿ネタ帳** | https://claude.ai/code/artifact/151d965c-1430-460d-824a-ac9662d3057e | `x/note/claims-page.html` | 主張97件＋議論テーマ14件。検索と分類で絞れる |
+| **X投稿の型カタログ** | https://claude.ai/code/artifact/07cd4541-91f0-495a-8285-8885749228a6 | `x/note/formats-page.html` | 現役7型＋廃止3型。実測の数字・急所・実物サンプル |
+| **投稿ネタ帳** | https://claude.ai/code/artifact/151d965c-1430-460d-824a-ac9662d3057e | `x/note/claims-page.html` | 主張102件＋議論テーマ14件。検索と分類で絞れる |
 | **ねこすけ運用ルール** | https://claude.ai/code/artifact/96284e5f-bf36-4234-82fc-b6d05c450bde | `x/note/rules-page.html` | 規定の索引。守ることの一覧 |
 
 ## 開き方
