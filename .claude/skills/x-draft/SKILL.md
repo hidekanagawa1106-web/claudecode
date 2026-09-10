@@ -36,6 +36,7 @@ description: X の投稿下書きを作る。ネタ帳（claims.md の C001〜�
 - `x/swipe.csv` — 他アカウントの構造とテーマ
 - `x/topics.md` — 時事の在庫
 - **`x/lists.md` — 箇条書きリスト（型11）専用のテーマ帳。反転の要素つき**
+- **`x/images.md` — 画像ポスト（型4-画像）のテーマ帳。強者の表し方と場面の在庫**
 - `x/episodes.md` — 実体験（あれば）
 
 `x/docs/funnel.md` は1stリプの橋渡しを書くときに読みます。
