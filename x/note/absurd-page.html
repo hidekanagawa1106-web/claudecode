@@ -1,0 +1,307 @@
+<title>上司の理不尽</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
+
+<style>
+/* ねこすけの常設ページと同じ地色・同じ三書体。一覧は行で読ませ、型の印だけ色を持たせる */
+:root{
+  --ground:#F0F1EC; --surface:#FFFFFF; --surface-2:#E7E9E2;
+  --ink:#1A1D1A; --ink-2:#4A504A; --muted:#6E756C; --line:#D3D7CC;
+  --accent:#24456B; --accent-soft:#DFE6EF;
+  --flag:#A9382C; --flag-soft:#F0DFDC;
+  --ok:#3F6B4A; --ok-soft:#DEE9E0;
+  --warn:#7A5A1E; --warn-soft:#EFE6D2;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#14171A; --surface:#1C2024; --surface-2:#242A2F;
+    --ink:#E9EBE6; --ink-2:#BFC5BE; --muted:#939A93; --line:#31373C;
+    --accent:#8FB3DE; --accent-soft:#1F2E40;
+    --flag:#E08376; --flag-soft:#3A2523;
+    --ok:#8FC49C; --ok-soft:#203024;
+    --warn:#D9BC7C; --warn-soft:#332A17;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#14171A; --surface:#1C2024; --surface-2:#242A2F;
+  --ink:#E9EBE6; --ink-2:#BFC5BE; --muted:#939A93; --line:#31373C;
+  --accent:#8FB3DE; --accent-soft:#1F2E40;
+  --flag:#E08376; --flag-soft:#3A2523;
+  --ok:#8FC49C; --ok-soft:#203024;
+  --warn:#D9BC7C; --warn-soft:#332A17;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  font-size:16px;line-height:1.8;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px;margin:0 auto;padding-inline:20px;padding-block:0 72px;}
+
+.masthead{padding-block:52px 18px;display:flex;flex-direction:column;gap:12px;}
+.eyebrow{font-family:"Roboto Mono",monospace;font-size:11.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);}
+h1{font-family:"Shippori Mincho B1",serif;font-weight:700;margin:0;
+  font-size:clamp(30px,6vw,44px);line-height:1.25;letter-spacing:.02em;text-wrap:balance;}
+.lede{margin:0;max-width:60ch;color:var(--ink-2);font-size:15px;}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+.lg{font-family:"Roboto Mono",monospace;font-size:11.5px;padding:3px 9px;border-radius:2px;
+  border:1px solid var(--line);white-space:nowrap;}
+.lg.k12{background:var(--accent-soft);color:var(--accent);border-color:transparent;}
+.lg.k11{background:var(--ok-soft);color:var(--ok);border-color:transparent;}
+.lg.k18{background:var(--warn-soft);color:var(--warn);border-color:transparent;}
+
+.guard{margin-top:24px;background:var(--surface);border:1px solid var(--line);
+  border-left:3px solid var(--flag);border-radius:3px;padding:16px 18px;}
+.guard h3{font-family:"Shippori Mincho B1",serif;font-size:16px;margin:0 0 8px;}
+.guard ul{margin:0;padding-left:1.1em;}
+.guard li{font-size:14px;color:var(--ink-2);margin-bottom:4px;}
+.guard li b{color:var(--ink);}
+
+.tools{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;
+  background:var(--ground);padding-block:14px 10px;margin-top:28px;
+  border-bottom:1px solid var(--line);}
+.search{display:flex;align-items:center;gap:10px;}
+#q{flex:1;min-width:0;font:inherit;font-size:15px;color:var(--ink);
+  background:var(--surface);border:1px solid var(--line);border-radius:3px;
+  padding:9px 12px;}
+#q::placeholder{color:var(--muted);}
+.hit{font-family:"Roboto Mono",monospace;font-size:12px;color:var(--muted);
+  flex:0 0 auto;font-variant-numeric:tabular-nums;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+.chip{font:inherit;font-size:13px;color:var(--ink-2);cursor:pointer;
+  background:var(--surface);border:1px solid var(--line);border-radius:999px;
+  padding:4px 11px;display:inline-flex;align-items:center;gap:6px;}
+.chip .n{font-family:"Roboto Mono",monospace;font-size:11px;color:var(--muted);
+  font-variant-numeric:tabular-nums;}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.chip.on .n{color:rgba(255,255,255,.72);}
+.mrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
+
+.list{list-style:none;margin:0;padding:0;}
+.row{display:flex;gap:12px;align-items:baseline;padding:11px 2px;
+  border-bottom:1px solid var(--line);}
+.num{font-family:"Roboto Mono",monospace;font-size:12px;color:var(--muted);
+  flex:0 0 auto;width:3.1em;font-variant-numeric:tabular-nums;}
+.txt{flex:1;min-width:0;font-size:15.5px;line-height:1.65;}
+.sub{display:block;font-size:12px;color:var(--muted);margin-top:2px;}
+.mk{flex:0 0 auto;font-family:"Roboto Mono",monospace;font-size:10.5px;
+  padding:2px 7px;border-radius:2px;white-space:nowrap;align-self:center;}
+.mk.k12{background:var(--accent-soft);color:var(--accent);}
+.mk.k11{background:var(--ok-soft);color:var(--ok);}
+.mk.k18{background:var(--warn-soft);color:var(--warn);}
+.row[hidden]{display:none;}
+.empty{padding:40px 0;color:var(--muted);font-size:14.5px;text-align:center;}
+
+.howto{margin-top:34px;background:var(--surface);border:1px solid var(--line);
+  border-radius:3px;padding:18px 20px;}
+.howto h3{font-family:"Shippori Mincho B1",serif;font-size:17px;margin:0 0 10px;}
+.howto ol{margin:0;padding-left:1.2em;}
+.howto li{margin-bottom:6px;font-size:14.5px;color:var(--ink-2);}
+.howto li b{color:var(--ink);}
+.howto p{margin:12px 0 0;font-size:13.5px;color:var(--muted);}
+.howto p b{color:var(--ink);}
+
+footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
+  font-family:"Roboto Mono",monospace;font-size:11.5px;color:var(--muted);line-height:1.9;}
+a{color:var(--accent);}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">あるある系の素材帳</p>
+  <h1>上司の理不尽</h1>
+  <p class="lede">ネタ単位ではなく「理不尽そのもの」を貯める場所です。セリフや場面はまだ付けません。ここから会話劇・箇条書きリスト・上司の一言が生えます。</p>
+  <div class="legend">
+    <span class="lg k12">◆ 型12 会話劇 33</span>
+    <span class="lg k11">■ 型11 リスト 39</span>
+    <span class="lg k18">● 型1・型8 20</span>
+  </div>
+</header>
+
+<div class="guard">
+  <h3>入れないもの</h3>
+  <ul>
+    <li><b>暴言・人格否定・ハラスメント。</b>笑いにならず、炎上します</li>
+    <li><b>特定の会社や個人が割れるもの</b></li>
+    <li><b>自分の職場でしか起きないこと。</b>「どこにでもある理不尽」がこの帳面の線です</li>
+  </ul>
+</div>
+
+<div class="tools">
+  <div class="search">
+    <input id="q" type="search" placeholder="理不尽を検索（例: 会議 / 有給 / R41）" aria-label="理不尽を検索">
+    <span class="hit" id="hit"></span>
+  </div>
+  <div class="chips" id="chips">
+<button class="chip on" data-cat="*">すべて<span class="n">92</span></button>
+<button class="chip" data-cat="指示・依頼">指示・依頼<span class="n">13</span></button>
+<button class="chip" data-cat="資料・レビュー">資料・レビュー<span class="n">9</span></button>
+<button class="chip" data-cat="会議">会議<span class="n">9</span></button>
+<button class="chip" data-cat="評価">評価<span class="n">9</span></button>
+<button class="chip" data-cat="時間・休み">時間・休み<span class="n">8</span></button>
+<button class="chip" data-cat="報告・連絡">報告・連絡<span class="n">9</span></button>
+<button class="chip" data-cat="人間関係">人間関係<span class="n">9</span></button>
+<button class="chip" data-cat="制度・ルール">制度・ルール<span class="n">8</span></button>
+<button class="chip" data-cat="精神論">精神論<span class="n">8</span></button>
+<button class="chip" data-cat="採用・異動・退職">採用・異動・退職<span class="n">6</span></button>
+<button class="chip" data-cat="その他">その他<span class="n">4</span></button>
+  </div>
+  <div class="mrow" id="marks">
+<button class="chip mchip on" data-mark="*">型を問わない<span class="n">92</span></button>
+<button class="chip mchip k12" data-mark="◆">◆ 型12 会話劇<span class="n">33</span></button>
+<button class="chip mchip k11" data-mark="■">■ 型11 リスト<span class="n">39</span></button>
+<button class="chip mchip k18" data-mark="●">● 型1・型8<span class="n">20</span></button>
+  </div>
+</div>
+
+<ul class="list" id="list">
+<li class="row" data-cat="指示・依頼" data-mark="◆" data-q="R1「なるはや」と言われて急いだら、実は来週でよかった指示・依頼型12 会話劇"><span class="num">R1</span><span class="txt">「なるはや」と言われて急いだら、実は来週でよかった<span class="sub">指示・依頼</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="◆" data-q="R2「ざっくりでいい」と言われて出すと、細かく直される指示・依頼型12 会話劇"><span class="num">R2</span><span class="txt">「ざっくりでいい」と言われて出すと、細かく直される<span class="sub">指示・依頼</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="◆" data-q="R3「任せた」と言われたのに、途中で巻き取られる指示・依頼型12 会話劇"><span class="num">R3</span><span class="txt">「任せた」と言われたのに、途中で巻き取られる<span class="sub">指示・依頼</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="◆" data-q="R4「相談して」と言われて相談すると「自分で考えて」指示・依頼型12 会話劇"><span class="num">R4</span><span class="txt">「相談して」と言われて相談すると「自分で考えて」<span class="sub">指示・依頼</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="●" data-q="R5方針が変わったことを、本人が覚えていない指示・依頼型1・型8"><span class="num">R5</span><span class="txt">方針が変わったことを、本人が覚えていない<span class="sub">指示・依頼</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="●" data-q="R6「前にそう言ったよね」と言われるが、言われていない指示・依頼型1・型8"><span class="num">R6</span><span class="txt">「前にそう言ったよね」と言われるが、言われていない<span class="sub">指示・依頼</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="■" data-q="R7指示が口頭だけで、あとから言った言わないになる指示・依頼型11 リスト"><span class="num">R7</span><span class="txt">指示が口頭だけで、あとから言った言わないになる<span class="sub">指示・依頼</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="■" data-q="R8金曜の夕方に降ってくる月曜締切指示・依頼型11 リスト"><span class="num">R8</span><span class="txt">金曜の夕方に降ってくる月曜締切<span class="sub">指示・依頼</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="■" data-q="R9「簡単だから」と渡される仕事ほど難しい指示・依頼型11 リスト"><span class="num">R9</span><span class="txt">「簡単だから」と渡される仕事ほど難しい<span class="sub">指示・依頼</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="●" data-q="R10自分が断った仕事が、別ルートで戻ってくる指示・依頼型1・型8"><span class="num">R10</span><span class="txt">自分が断った仕事が、別ルートで戻ってくる<span class="sub">指示・依頼</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="◆" data-q="R11複数の上司から逆の指示が来て、どちらも譲らない指示・依頼型12 会話劇"><span class="num">R11</span><span class="txt">複数の上司から逆の指示が来て、どちらも譲らない<span class="sub">指示・依頼</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="■" data-q="R12急ぎと言われた案件が、出したあと3日放置される指示・依頼型11 リスト"><span class="num">R12</span><span class="txt">急ぎと言われた案件が、出したあと3日放置される<span class="sub">指示・依頼</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="指示・依頼" data-mark="◆" data-q="R13「俺に聞かずにやれ」と言われ、やると「なんで聞かない」指示・依頼型12 会話劇"><span class="num">R13</span><span class="txt">「俺に聞かずにやれ」と言われ、やると「なんで聞かない」<span class="sub">指示・依頼</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="資料・レビュー" data-mark="■" data-q="R14レビューのたびに、違う箇所を指摘される資料・レビュー型11 リスト"><span class="num">R14</span><span class="txt">レビューのたびに、違う箇所を指摘される<span class="sub">資料・レビュー</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="資料・レビュー" data-mark="■" data-q="R15最後まで読まずに1ページ目だけ直される資料・レビュー型11 リスト"><span class="num">R15</span><span class="txt">最後まで読まずに1ページ目だけ直される<span class="sub">資料・レビュー</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="資料・レビュー" data-mark="◆" data-q="R16「誤字は気にするな」と言いながら誤字を指摘する資料・レビュー型12 会話劇"><span class="num">R16</span><span class="txt">「誤字は気にするな」と言いながら誤字を指摘する<span class="sub">資料・レビュー</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="資料・レビュー" data-mark="◆" data-q="R17「簡潔に」と言われて短くすると「情報が足りない」資料・レビュー型12 会話劇"><span class="num">R17</span><span class="txt">「簡潔に」と言われて短くすると「情報が足りない」<span class="sub">資料・レビュー</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="資料・レビュー" data-mark="■" data-q="R18フォントと余白だけ直されて、中身の話が出ない資料・レビュー型11 リスト"><span class="num">R18</span><span class="txt">フォントと余白だけ直されて、中身の話が出ない<span class="sub">資料・レビュー</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="資料・レビュー" data-mark="■" data-q="R19出し直したら、最初の版に戻れと言われる資料・レビュー型11 リスト"><span class="num">R19</span><span class="txt">出し直したら、最初の版に戻れと言われる<span class="sub">資料・レビュー</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="資料・レビュー" data-mark="●" data-q="R20自分が作った資料が、上司の名前で役員に出る資料・レビュー型1・型8"><span class="num">R20</span><span class="txt">自分が作った資料が、上司の名前で役員に出る<span class="sub">資料・レビュー</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="資料・レビュー" data-mark="■" data-q="R21直前になって「様式が変わった」と言われる資料・レビュー型11 リスト"><span class="num">R21</span><span class="txt">直前になって「様式が変わった」と言われる<span class="sub">資料・レビュー</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="資料・レビュー" data-mark="◆" data-q="R22「formatは自由だ」と言われ、出すと「うちの型があるだろ」資料・レビュー型12 会話劇"><span class="num">R22</span><span class="txt">「formatは自由だ」と言われ、出すと「うちの型があるだろ」<span class="sub">資料・レビュー</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="会議" data-mark="◆" data-q="R23会議を減らそうという会議が増える会議型12 会話劇"><span class="num">R23</span><span class="txt">会議を減らそうという会議が増える<span class="sub">会議</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="会議" data-mark="◆" data-q="R24「時間ないから手短に」と言った人が一番長く話す会議型12 会話劇"><span class="num">R24</span><span class="txt">「時間ないから手短に」と言った人が一番長く話す<span class="sub">会議</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="会議" data-mark="■" data-q="R25決まったことが、次の会議でまた議論される会議型11 リスト"><span class="num">R25</span><span class="txt">決まったことが、次の会議でまた議論される<span class="sub">会議</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="会議" data-mark="◆" data-q="R26発言しないと怒られ、発言すると長引くと怒られる会議型12 会話劇"><span class="num">R26</span><span class="txt">発言しないと怒られ、発言すると長引くと怒られる<span class="sub">会議</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="会議" data-mark="■" data-q="R27自分が呼ばれた理由が、最後まで分からない会議型11 リスト"><span class="num">R27</span><span class="txt">自分が呼ばれた理由が、最後まで分からない<span class="sub">会議</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="会議" data-mark="●" data-q="R28議事録を出すと、発言していないことを足せと言われる会議型1・型8"><span class="num">R28</span><span class="txt">議事録を出すと、発言していないことを足せと言われる<span class="sub">会議</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="会議" data-mark="●" data-q="R29役員が入った瞬間に、全員の意見が変わる会議型1・型8"><span class="num">R29</span><span class="txt">役員が入った瞬間に、全員の意見が変わる<span class="sub">会議</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="会議" data-mark="■" data-q="R30アジェンダなしで集められ、最後に「で、何の話だっけ」会議型11 リスト"><span class="num">R30</span><span class="txt">アジェンダなしで集められ、最後に「で、何の話だっけ」<span class="sub">会議</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="会議" data-mark="◆" data-q="R31「意見は対等で」と言いながら、最後は役職で決まる会議型12 会話劇"><span class="num">R31</span><span class="txt">「意見は対等で」と言いながら、最後は役職で決まる<span class="sub">会議</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="評価" data-mark="●" data-q="R32評価面談で初めて、半年前のミスを持ち出される評価型1・型8"><span class="num">R32</span><span class="txt">評価面談で初めて、半年前のミスを持ち出される<span class="sub">評価</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="評価" data-mark="■" data-q="R33目標に書いていないことで評価が下がる評価型11 リスト"><span class="num">R33</span><span class="txt">目標に書いていないことで評価が下がる<span class="sub">評価</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="評価" data-mark="◆" data-q="R34「数字じゃない」と言われ、結局は数字で決まる評価型12 会話劇"><span class="num">R34</span><span class="txt">「数字じゃない」と言われ、結局は数字で決まる<span class="sub">評価</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="評価" data-mark="■" data-q="R35他部署との比較で下げられるが、基準は示されない評価型11 リスト"><span class="num">R35</span><span class="txt">他部署との比較で下げられるが、基準は示されない<span class="sub">評価</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="評価" data-mark="●" data-q="R36昇進の条件を聞くと「それを聞く人は上がらない」評価型1・型8"><span class="num">R36</span><span class="txt">昇進の条件を聞くと「それを聞く人は上がらない」<span class="sub">評価</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="評価" data-mark="■" data-q="R37がんばりは褒められるが、評価には反映されない評価型11 リスト"><span class="num">R37</span><span class="txt">がんばりは褒められるが、評価には反映されない<span class="sub">評価</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="評価" data-mark="◆" data-q="R38評価の理由が「総合的に判断して」だけ評価型12 会話劇"><span class="num">R38</span><span class="txt">評価の理由が「総合的に判断して」だけ<span class="sub">評価</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="評価" data-mark="■" data-q="R39上司が代わった瞬間に、同じ仕事の評価が変わる評価型11 リスト"><span class="num">R39</span><span class="txt">上司が代わった瞬間に、同じ仕事の評価が変わる<span class="sub">評価</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="評価" data-mark="◆" data-q="R40「失敗は財産だ」と言った人が、同じ失敗を記録している評価型12 会話劇"><span class="num">R40</span><span class="txt">「失敗は財産だ」と言った人が、同じ失敗を記録している<span class="sub">評価</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="時間・休み" data-mark="◆" data-q="R41残業を減らせと言われるが、仕事量は変わらない時間・休み型12 会話劇"><span class="num">R41</span><span class="txt">残業を減らせと言われるが、仕事量は変わらない<span class="sub">時間・休み</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="時間・休み" data-mark="◆" data-q="R42定時で帰ると「余裕あるね」と仕事が増える時間・休み型12 会話劇"><span class="num">R42</span><span class="txt">定時で帰ると「余裕あるね」と仕事が増える<span class="sub">時間・休み</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="時間・休み" data-mark="◆" data-q="R43有給の理由を聞かれる時間・休み型12 会話劇"><span class="num">R43</span><span class="txt">有給の理由を聞かれる<span class="sub">時間・休み</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="時間・休み" data-mark="■" data-q="R44休んだ翌日、全員から「大丈夫だった？」と聞かれる時間・休み型11 リスト"><span class="num">R44</span><span class="txt">休んだ翌日、全員から「大丈夫だった？」と聞かれる<span class="sub">時間・休み</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="時間・休み" data-mark="■" data-q="R45上司が帰らないと帰りにくい時間・休み型11 リスト"><span class="num">R45</span><span class="txt">上司が帰らないと帰りにくい<span class="sub">時間・休み</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="時間・休み" data-mark="■" data-q="R46繁忙期に「有給取っていいよ」と言われる時間・休み型11 リスト"><span class="num">R46</span><span class="txt">繁忙期に「有給取っていいよ」と言われる<span class="sub">時間・休み</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="時間・休み" data-mark="◆" data-q="R47「定時で帰れ」と言いながら、帰り際に仕事を渡す時間・休み型12 会話劇"><span class="num">R47</span><span class="txt">「定時で帰れ」と言いながら、帰り際に仕事を渡す<span class="sub">時間・休み</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="時間・休み" data-mark="■" data-q="R48自分だけ早く帰ると、翌日ちょっと聞かれる時間・休み型11 リスト"><span class="num">R48</span><span class="txt">自分だけ早く帰ると、翌日ちょっと聞かれる<span class="sub">時間・休み</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="報告・連絡" data-mark="◆" data-q="R49悪い報告をすると、報告そのものを怒られる報告・連絡型12 会話劇"><span class="num">R49</span><span class="txt">悪い報告をすると、報告そのものを怒られる<span class="sub">報告・連絡</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="報告・連絡" data-mark="◆" data-q="R50報告しないと怒られ、報告すると「いちいち言うな」報告・連絡型12 会話劇"><span class="num">R50</span><span class="txt">報告しないと怒られ、報告すると「いちいち言うな」<span class="sub">報告・連絡</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="報告・連絡" data-mark="■" data-q="R51緊急だと呼ばれて行くと、雑談から始まる報告・連絡型11 リスト"><span class="num">R51</span><span class="txt">緊急だと呼ばれて行くと、雑談から始まる<span class="sub">報告・連絡</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="報告・連絡" data-mark="■" data-q="R52チャットで済む話で、席まで呼ばれる報告・連絡型11 リスト"><span class="num">R52</span><span class="txt">チャットで済む話で、席まで呼ばれる<span class="sub">報告・連絡</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="報告・連絡" data-mark="■" data-q="R53既読がついたまま3日返事が来ない報告・連絡型11 リスト"><span class="num">R53</span><span class="txt">既読がついたまま3日返事が来ない<span class="sub">報告・連絡</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="報告・連絡" data-mark="●" data-q="R54自分が知らないところで、話が進んでいる報告・連絡型1・型8"><span class="num">R54</span><span class="txt">自分が知らないところで、話が進んでいる<span class="sub">報告・連絡</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="報告・連絡" data-mark="■" data-q="R55共有されていない前提で、判断を求められる報告・連絡型11 リスト"><span class="num">R55</span><span class="txt">共有されていない前提で、判断を求められる<span class="sub">報告・連絡</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="報告・連絡" data-mark="●" data-q="R56CCに入っていないメールの内容で怒られる報告・連絡型1・型8"><span class="num">R56</span><span class="txt">CCに入っていないメールの内容で怒られる<span class="sub">報告・連絡</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="報告・連絡" data-mark="◆" data-q="R57「気軽に相談して」と言われ、行くと「今じゃない」報告・連絡型12 会話劇"><span class="num">R57</span><span class="txt">「気軽に相談して」と言われ、行くと「今じゃない」<span class="sub">報告・連絡</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="人間関係" data-mark="●" data-q="R58機嫌によって、同じ案件の指示が変わる人間関係型1・型8"><span class="num">R58</span><span class="txt">機嫌によって、同じ案件の指示が変わる<span class="sub">人間関係</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="人間関係" data-mark="■" data-q="R59自分が言ったときは却下され、他の人が言うと通る人間関係型11 リスト"><span class="num">R59</span><span class="txt">自分が言ったときは却下され、他の人が言うと通る<span class="sub">人間関係</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="人間関係" data-mark="■" data-q="R60飲み会での決定事項が、翌日そのまま共有される人間関係型11 リスト"><span class="num">R60</span><span class="txt">飲み会での決定事項が、翌日そのまま共有される<span class="sub">人間関係</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="人間関係" data-mark="◆" data-q="R61「風通しがいい」と言う人ほど、言わせてくれない人間関係型12 会話劇"><span class="num">R61</span><span class="txt">「風通しがいい」と言う人ほど、言わせてくれない<span class="sub">人間関係</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="人間関係" data-mark="●" data-q="R62本人のいないところで、評価の話が始まる人間関係型1・型8"><span class="num">R62</span><span class="txt">本人のいないところで、評価の話が始まる<span class="sub">人間関係</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="人間関係" data-mark="◆" data-q="R63「若い人の感覚で」と言われ、言うと却下される人間関係型12 会話劇"><span class="num">R63</span><span class="txt">「若い人の感覚で」と言われ、言うと却下される<span class="sub">人間関係</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="人間関係" data-mark="■" data-q="R64失敗は個人の責任、成功はチームの成果になる人間関係型11 リスト"><span class="num">R64</span><span class="txt">失敗は個人の責任、成功はチームの成果になる<span class="sub">人間関係</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="人間関係" data-mark="◆" data-q="R65「なんでも言って」と言ったあとに「で、誰が言ってた」人間関係型12 会話劇"><span class="num">R65</span><span class="txt">「なんでも言って」と言ったあとに「で、誰が言ってた」<span class="sub">人間関係</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="人間関係" data-mark="●" data-q="R66部下の前では強く、役員の前では別人になる人間関係型1・型8"><span class="num">R66</span><span class="txt">部下の前では強く、役員の前では別人になる<span class="sub">人間関係</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="制度・ルール" data-mark="■" data-q="R67ルールを作った人が、一番守らない制度・ルール型11 リスト"><span class="num">R67</span><span class="txt">ルールを作った人が、一番守らない<span class="sub">制度・ルール</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="制度・ルール" data-mark="■" data-q="R68承認フローが多すぎて、決裁までに案件が死ぬ制度・ルール型11 リスト"><span class="num">R68</span><span class="txt">承認フローが多すぎて、決裁までに案件が死ぬ<span class="sub">制度・ルール</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="制度・ルール" data-mark="■" data-q="R69経費で落ちる基準が、人によって違う制度・ルール型11 リスト"><span class="num">R69</span><span class="txt">経費で落ちる基準が、人によって違う<span class="sub">制度・ルール</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="制度・ルール" data-mark="■" data-q="R70制度はあるが、使うと空気が悪くなる制度・ルール型11 リスト"><span class="num">R70</span><span class="txt">制度はあるが、使うと空気が悪くなる<span class="sub">制度・ルール</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="制度・ルール" data-mark="■" data-q="R71申請書の「目的」欄を、誰も読んでいない制度・ルール型11 リスト"><span class="num">R71</span><span class="txt">申請書の「目的」欄を、誰も読んでいない<span class="sub">制度・ルール</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="制度・ルール" data-mark="■" data-q="R72新しいツールを入れたのに、結局メールで来る制度・ルール型11 リスト"><span class="num">R72</span><span class="txt">新しいツールを入れたのに、結局メールで来る<span class="sub">制度・ルール</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="制度・ルール" data-mark="◆" data-q="R73ペーパーレスと言いながら、紙で出せと言われる制度・ルール型12 会話劇"><span class="num">R73</span><span class="txt">ペーパーレスと言いながら、紙で出せと言われる<span class="sub">制度・ルール</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="制度・ルール" data-mark="●" data-q="R74承認した人が、あとで「自分は聞いていない」と言う制度・ルール型1・型8"><span class="num">R74</span><span class="txt">承認した人が、あとで「自分は聞いていない」と言う<span class="sub">制度・ルール</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="精神論" data-mark="◆" data-q="R75「気合い」で解決しようとする精神論型12 会話劇"><span class="num">R75</span><span class="txt">「気合い」で解決しようとする<span class="sub">精神論</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="精神論" data-mark="●" data-q="R76「若いうちの苦労は買ってでも」と言う人が、苦労していない精神論型1・型8"><span class="num">R76</span><span class="txt">「若いうちの苦労は買ってでも」と言う人が、苦労していない<span class="sub">精神論</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="精神論" data-mark="■" data-q="R77例え話が全部スポーツ精神論型11 リスト"><span class="num">R77</span><span class="txt">例え話が全部スポーツ<span class="sub">精神論</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="精神論" data-mark="●" data-q="R78「俺の若い頃は」で始まる解決策が、現代に合わない精神論型1・型8"><span class="num">R78</span><span class="txt">「俺の若い頃は」で始まる解決策が、現代に合わない<span class="sub">精神論</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="精神論" data-mark="■" data-q="R79体調不良を「気持ちの問題」にされる精神論型11 リスト"><span class="num">R79</span><span class="txt">体調不良を「気持ちの問題」にされる<span class="sub">精神論</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="精神論" data-mark="◆" data-q="R80できないと言うと「やる気がない」になる精神論型12 会話劇"><span class="num">R80</span><span class="txt">できないと言うと「やる気がない」になる<span class="sub">精神論</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="精神論" data-mark="■" data-q="R81残業している人のほうが、頑張って見える空気精神論型11 リスト"><span class="num">R81</span><span class="txt">残業している人のほうが、頑張って見える空気<span class="sub">精神論</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="精神論" data-mark="◆" data-q="R82「無理はするな」と言いながら、無理な期限を切る精神論型12 会話劇"><span class="num">R82</span><span class="txt">「無理はするな」と言いながら、無理な期限を切る<span class="sub">精神論</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="採用・異動・退職" data-mark="●" data-q="R83面接で聞いていた仕事と、配属後の仕事が違う採用・異動・退職型1・型8"><span class="num">R83</span><span class="txt">面接で聞いていた仕事と、配属後の仕事が違う<span class="sub">採用・異動・退職</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="採用・異動・退職" data-mark="■" data-q="R84異動の内示より、噂のほうが早い採用・異動・退職型11 リスト"><span class="num">R84</span><span class="txt">異動の内示より、噂のほうが早い<span class="sub">採用・異動・退職</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="採用・異動・退職" data-mark="●" data-q="R85辞める人が出ると、その人の話が急に辛口になる採用・異動・退職型1・型8"><span class="num">R85</span><span class="txt">辞める人が出ると、その人の話が急に辛口になる<span class="sub">採用・異動・退職</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="採用・異動・退職" data-mark="◆" data-q="R86退職を伝えた瞬間に、扱いが変わる採用・異動・退職型12 会話劇"><span class="num">R86</span><span class="txt">退職を伝えた瞬間に、扱いが変わる<span class="sub">採用・異動・退職</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="採用・異動・退職" data-mark="■" data-q="R87人が減ったのに、目標だけ据え置き採用・異動・退職型11 リスト"><span class="num">R87</span><span class="txt">人が減ったのに、目標だけ据え置き<span class="sub">採用・異動・退職</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="採用・異動・退職" data-mark="●" data-q="R88採用が決まらないまま、業務だけ増える採用・異動・退職型1・型8"><span class="num">R88</span><span class="txt">採用が決まらないまま、業務だけ増える<span class="sub">採用・異動・退職</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="その他" data-mark="◆" data-q="R89「これ誰がやったの」と言われるが、指示したのは本人その他型12 会話劇"><span class="num">R89</span><span class="txt">「これ誰がやったの」と言われるが、指示したのは本人<span class="sub">その他</span></span><span class="mk k12">型12 会話劇</span></li>
+<li class="row" data-cat="その他" data-mark="■" data-q="R90謝りに行くのは部下、怒られるのも部下その他型11 リスト"><span class="num">R90</span><span class="txt">謝りに行くのは部下、怒られるのも部下<span class="sub">その他</span></span><span class="mk k11">型11 リスト</span></li>
+<li class="row" data-cat="その他" data-mark="●" data-q="R91「現場が一番大事」と言う人が、現場に来ないその他型1・型8"><span class="num">R91</span><span class="txt">「現場が一番大事」と言う人が、現場に来ない<span class="sub">その他</span></span><span class="mk k18">型1・型8</span></li>
+<li class="row" data-cat="その他" data-mark="◆" data-q="R92自分の失敗だけ「組織の課題」になるその他型12 会話劇"><span class="num">R92</span><span class="txt">自分の失敗だけ「組織の課題」になる<span class="sub">その他</span></span><span class="mk k12">型12 会話劇</span></li>
+</ul>
+<p class="empty" id="empty" hidden>そのことばでは見つかりませんでした。</p>
+
+<div class="howto">
+  <h3>ここからポストにする</h3>
+  <ol>
+    <li><b>◆から会話劇をつくる。</b>上司の2文に落として、3つで検品する — 同じ息で続けて出るか／1枚の絵の中で起きるか／返しは短く素直か</li>
+    <li><b>■は7〜11個まとめて箇条書きリストに。</b>字数は4字から1字ずつの階段、毒は最後に置く</li>
+    <li><b>●は場面と決め台詞が立つ</b>ので、上司の一言か短文に回す</li>
+  </ol>
+  <p><b>全部を上司批判にしないこと。</b>このアカウントは元リクのマネージャーで、いまも面接官です。理不尽を並べるだけだと、ただの愚痴アカウントになります。<b>3〜4本に1本は「判定する側」の投稿</b>を挟んでください。</p>
+</div>
+
+<footer>
+  元データは x/absurd.md　—　全92件<br>
+  更新は build_absurd_page.py を流し直して同じURLに publish
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var rows=[].slice.call(document.querySelectorAll('.row'));
+  var q=document.getElementById('q'), hit=document.getElementById('hit');
+  var empty=document.getElementById('empty');
+  var cat='*', mark='*';
+
+  function apply(){
+    var t=(q.value||'').trim().toLowerCase(), n=0;
+    rows.forEach(function(r){
+      var ok=(cat==='*'||r.dataset.cat===cat)
+          && (mark==='*'||r.dataset.mark===mark)
+          && (!t||r.dataset.q.toLowerCase().indexOf(t)>=0);
+      r.hidden=!ok; if(ok)n++;
+    });
+    hit.textContent=n+' 件';
+    empty.hidden=n>0;
+  }
+  function wire(id, key){
+    document.getElementById(id).addEventListener('click', function(e){
+      var b=e.target.closest('.chip'); if(!b)return;
+      [].forEach.call(this.querySelectorAll('.chip'), function(c){c.classList.remove('on');});
+      b.classList.add('on');
+      if(key==='cat') cat=b.dataset.cat; else mark=b.dataset.mark;
+      apply();
+    });
+  }
+  wire('chips','cat'); wire('marks','mark');
+  q.addEventListener('input', apply);
+  apply();
+})();
+</script>
